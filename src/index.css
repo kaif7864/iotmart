@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  /* Core Brand Colors */
+  --color-accent: #0284c7; /* Sky 600 */
+  --color-accent-glow: rgba(2, 132, 199, 0.1);
+  --color-secondary: #4f46e5; /* Indigo 600 */
+  
+  /* Background & Surfaces */
+  --color-app-bg: #f8fafc; /* Slate 50 */
+  --color-card-bg: #ffffff; /* White */
+  --color-border-main: #e2e8f0; /* Slate 200 */
+  --color-border-accent: #bae6fd; /* Sky 200 */
+  
+  /* Text */
+  --color-text-primary: #0f172a; /* Slate 900 */
+  --color-text-secondary: #475569; /* Slate 600 */
+  --color-text-muted: #94a3b8; /* Slate 400 */
+
+  /* Spacing & Radius - Amazon/Flipkart Style */
+  --radius-app-xl: 8px;
+  --radius-app-2xl: 12px;
+}
+
+@layer base {
+  body {
+    @apply bg-app-bg text-text-primary antialiased selection:bg-accent/20;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-card-bg border border-border-main shadow-sm;
+  }
+  
+  .glass-card {
+    @apply bg-card-bg border border-border-main hover:border-border-accent hover:shadow-md transition-all duration-300;
+  }
+  
+  .glow-text {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-accent to-secondary;
+  }
+  
+  .btn-premium {
+    @apply px-6 py-2.5 bg-accent hover:bg-accent/90 text-white rounded-app-xl font-bold transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2;
+  }
+
+  .glow-box {
+    box-shadow: 0 4px 20px -2px var(--color-accent-glow);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-app-bg;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full border-2 border-app-bg;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
