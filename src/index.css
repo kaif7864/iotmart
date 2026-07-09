@@ -18,8 +18,8 @@
   --color-text-muted: #94a3b8; /* Slate 400 */
 
   /* Spacing & Radius - Amazon/Flipkart Style */
-  --radius-app-xl: 8px;
-  --radius-app-2xl: 12px;
+  --radius-app-xl: 4px;
+  --radius-app-2xl: 4px;
 }
 
 @layer base {
@@ -62,4 +62,13 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-400;
+}
+
+/* Hide scrollbar for specific elements */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }

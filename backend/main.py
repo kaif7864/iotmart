@@ -2,16 +2,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-from routes_products import router as product_router
-from routes_orders import router as order_router
-from routes_users import router as user_router
-from routes_analytics import router as analytics_router
-from routes_ai import router as ai_router
-from routes_auth import router as auth_router
+from api.router import api_router
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from middleware.logging_middleware import LoggingMiddleware
 
 load_dotenv()
 
+# Rate Limiter setup (100 requests per minute globally)
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+
 app = FastAPI(title="IoTMart API", version="1.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(LoggingMiddleware)
 
 # CORS Configuration
 app.add_middleware(
@@ -22,16 +32,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(product_router, prefix="/api/products", tags=["Products"])
-app.include_router(order_router, prefix="/api/orders", tags=["Orders"])
-app.include_router(user_router, prefix="/api/users", tags=["Users"])
-app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"])
-app.include_router(ai_router, prefix="/api/ai", tags=["AI"])
-app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
+app.include_router(api_router, prefix="/api")
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to IoTMart API", "status": "online"}
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    errors = []
+    for error in exc.errors():
+        # Handle body/query prefixes in location tuple
+        loc = error["loc"]
+        field = loc[-1] if len(loc) > 0 else "unknown"
+        errors.append(f"{field}: {error['msg']}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "Validation error", "errors": errors}
+    )
 
 @app.get("/api/health")
 async def health_check():

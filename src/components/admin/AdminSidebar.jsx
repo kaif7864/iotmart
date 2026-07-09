@@ -26,7 +26,7 @@ const AdminSidebar = () => {
   ];
 
   return (
-    <div className="w-64 min-h-screen bg-app-bg border-r border-border-main flex flex-col sticky top-0">
+    <div className="w-64 min-h-screen bg-app-bg border-r border-border-main hidden md:flex flex-col sticky top-0">
       <div className="p-6">
         <div className="flex items-center gap-3 mb-10">
           <CircuitBoard className="h-8 w-8 text-accent" />
@@ -38,7 +38,7 @@ const AdminSidebar = () => {
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-sm text-sm font-bold transition-all ${
                 location.pathname === item.path
                   ? 'bg-accent text-white shadow-lg shadow-accent/20'
                   : 'text-text-muted hover:text-accent hover:bg-card-bg'
@@ -58,7 +58,7 @@ const AdminSidebar = () => {
         </button>
         <button 
           onClick={logout}
-          className="flex items-center gap-3 px-4 py-3 w-full text-sm font-bold text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+          className="flex items-center gap-3 px-4 py-3 w-full text-sm font-bold text-status-danger hover:bg-status-danger/10 rounded-sm transition-all"
         >
           <LogOut className="h-5 w-5" />
           Sign Out

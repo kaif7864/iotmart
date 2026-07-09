@@ -26,17 +26,27 @@ const DeviceDashboard = () => {
   ]);
   const [activeDevice, setActiveDevice] = useState(devices[0]);
 
-  // Simulate Real-time data & Console Logs
+  // Connect to Real-time WebSocket Telemetry
   useEffect(() => {
-    const interval = setInterval(() => {
+    if (!activeDevice || !user) return;
+
+    const ws = new WebSocket(`ws://localhost:8000/api/ws/telemetry/${activeDevice.id}`);
+
+    ws.onopen = () => {
+      setConsoleLogs(prev => [`[WS] Connected to telemetry stream for ${activeDevice.id}`, ...prev].slice(0, 8));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
       setDevices(prev => prev.map(d => {
-        if (d.status === 'Online') {
-          const newTemp = parseFloat((d.temp + (Math.random() * 0.4 - 0.2)).toFixed(1));
+        if (d.id === activeDevice.id) {
           return {
             ...d,
-            temp: newTemp,
-            humidity: Math.min(100, Math.max(0, d.humidity + Math.floor(Math.random() * 3 - 1))),
-            signal: Math.min(100, Math.max(0, d.signal + Math.floor(Math.random() * 5 - 2)))
+            temp: data.temperature,
+            humidity: data.humidity,
+            signal: data.networkStrength,
+            health: Math.min(100, Math.max(0, 100 - (data.cpuUsage / 2))) // Mock calculation
           };
         }
         return d;
@@ -49,14 +59,17 @@ const DeviceDashboard = () => {
         return prev;
       });
 
-      // Random log
-      const topics = ['TEMP', 'HUMID', 'SYS', 'RELAY'];
-      const msg = `[${topics[Math.floor(Math.random() * topics.length)]}] Telemetry update: ${Math.random().toString(36).substring(7).toUpperCase()}`;
-      setConsoleLogs(prev => [msg, ...prev].slice(0, 8));
+      setConsoleLogs(prev => [`[DATA] Temp: ${data.temperature}°C, Hum: ${data.humidity}%, CPU: ${data.cpuUsage}%`, ...prev].slice(0, 8));
+    };
 
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [activeDevice.id]);
+    ws.onclose = () => {
+      setConsoleLogs(prev => [`[WS] Connection closed for ${activeDevice.id}`, ...prev].slice(0, 8));
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [activeDevice?.id, user]);
 
   const toggleRelay = (id) => {
     setDevices(prev => prev.map(d => {
@@ -91,7 +104,7 @@ const DeviceDashboard = () => {
 
   if (!user) {
     return (
-      <div className="pt-48 pb-32 min-h-screen text-center bg-slate-50">
+      <div className="pt-48 pb-32 min-h-screen text-center bg-app-bg">
         <h2 className="text-3xl font-black text-text-primary mb-6 uppercase tracking-tighter">IoT Control Center Locked</h2>
         <p className="text-text-muted mb-10 max-w-sm mx-auto font-medium">Please login to authorize device telemetry access.</p>
       </div>
@@ -99,28 +112,28 @@ const DeviceDashboard = () => {
   }
 
   return (
-    <div className="pt-32 pb-32 min-h-screen bg-slate-50">
+    <div className="pt-32 pb-32 min-h-screen bg-app-bg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 border-b border-border-main pb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+              <div className="w-2 h-2 bg-status-success rounded-full animate-ping"></div>
               <p className="text-emerald-600 text-[10px] font-black uppercase tracking-[0.3em]">MQTT Broker Online</p>
             </div>
             <h1 className="text-4xl font-black text-text-primary tracking-tighter uppercase leading-none">Real-Time <span className="text-accent">Monitoring</span></h1>
           </div>
           <div className="flex gap-4">
-            <div className="bg-white px-6 py-3 rounded-2xl border border-border-main shadow-sm flex items-center gap-3">
-              <HeartPulse className="h-5 w-5 text-red-500" />
+            {/* <div className="bg-card-bg px-6 py-3 rounded-sm border border-border-main shadow-sm flex items-center gap-3">
+              <HeartPulse className="h-5 w-5 text-status-danger" />
               <div>
                 <p className="text-[8px] font-black text-text-muted uppercase tracking-widest">Network Health</p>
                 <p className="text-sm font-black text-text-primary uppercase">Excellent (98%)</p>
               </div>
-            </div>
+            </div> */}
             <button onClick={() => setShowAddModal(true)} className="btn-premium px-8 py-4 text-xs flex items-center gap-3">
-              <Plus className="h-5 w-5" /> Provision Node
+              <Plus className="h-5 w-5" /> Add Device
             </button>
           </div>
         </div>
@@ -129,21 +142,21 @@ const DeviceDashboard = () => {
           
           {/* Sidebar - Device List */}
           <aside className="lg:col-span-4 space-y-6">
-            <h3 className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] px-2">Active Fleet</h3>
+            <h3 className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] px-2">Connected Devices</h3>
             <div className="space-y-4">
               {devices.map(device => (
                 <button 
                   key={device.id}
                   onClick={() => setActiveDevice(device)}
-                  className={`w-full text-left p-6 rounded-3xl border-2 transition-all relative group ${
+                  className={`w-full text-left p-6 rounded-sm border-2 transition-all relative group ${
                     activeDevice.id === device.id 
-                      ? 'border-accent bg-white shadow-xl shadow-accent/5' 
-                      : 'border-transparent bg-white/50 hover:bg-white hover:border-border-main'
+                      ? 'border-accent bg-card-bg shadow-xl shadow-accent/5' 
+                      : 'border-transparent bg-card-bg/50 hover:bg-card-bg hover:border-border-main'
                   }`}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeDevice.id === device.id ? 'bg-accent text-white' : 'bg-slate-100 text-text-muted'}`}>
+                      <div className={`w-10 h-10 rounded-sm flex items-center justify-center ${activeDevice.id === device.id ? 'bg-accent text-white' : 'bg-surface-hover text-text-muted'}`}>
                         <Cpu className="h-5 w-5" />
                       </div>
                       <div>
@@ -151,14 +164,14 @@ const DeviceDashboard = () => {
                         <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{device.id}</p>
                       </div>
                     </div>
-                    <div className={`w-2 h-2 rounded-full ${device.status === 'Online' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${device.status === 'Online' ? 'bg-status-success shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-status-danger'}`}></div>
                   </div>
                 </button>
               ))}
             </div>
 
             {/* MQTT Console */}
-            <div className="bg-slate-900 rounded-3xl p-6 shadow-2xl overflow-hidden relative group">
+            <div className="bg-surface-dark rounded-sm p-6 shadow-2xl overflow-hidden relative group">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Terminal className="h-4 w-4 text-emerald-400" />
@@ -185,20 +198,20 @@ const DeviceDashboard = () => {
 
           {/* Main Monitor - Active Device Details */}
           <main className="lg:col-span-8 space-y-8">
-            <div className="bg-white rounded-[40px] p-10 border border-border-main shadow-sm relative overflow-hidden">
+            <div className="bg-card-bg rounded-[40px] p-10 border border-border-main shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-[100px] rounded-full"></div>
               
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 relative z-10">
                 <div>
                   <h2 className="text-3xl font-black text-text-primary uppercase tracking-tighter">{activeDevice.name}</h2>
-                  <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mt-1">Status: <span className={activeDevice.status === 'Online' ? 'text-emerald-600' : 'text-red-500'}>{activeDevice.status}</span> • ID: {activeDevice.id}</p>
+                  <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mt-1">Status: <span className={activeDevice.status === 'Online' ? 'text-emerald-600' : 'text-status-danger'}>{activeDevice.status}</span> • ID: {activeDevice.id}</p>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
                     <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-1">Signal Strength</p>
                     <div className="flex gap-0.5 h-4 items-end">
                       {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className={`w-1 rounded-full ${i <= 4 ? 'bg-accent' : 'bg-slate-100'}`} style={{ height: `${i * 20}%` }}></div>
+                        <div key={i} className={`w-1 rounded-full ${i <= 4 ? 'bg-accent' : 'bg-surface-hover'}`} style={{ height: `${i * 20}%` }}></div>
                       ))}
                     </div>
                   </div>
@@ -213,22 +226,22 @@ const DeviceDashboard = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 text-center">
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 text-red-500 shadow-sm">
+                <div className="bg-app-bg p-8 rounded-sm border border-border-subtle text-center">
+                  <div className="w-12 h-12 bg-card-bg rounded-sm flex items-center justify-center mx-auto mb-4 text-status-danger shadow-sm">
                     <Thermometer className="h-6 w-6" />
                   </div>
                   <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Temperature</p>
                   <h4 className="text-4xl font-black text-text-primary tracking-tighter">{activeDevice.temp}°C</h4>
                 </div>
-                <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 text-center">
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 text-blue-500 shadow-sm">
+                <div className="bg-app-bg p-8 rounded-sm border border-border-subtle text-center">
+                  <div className="w-12 h-12 bg-card-bg rounded-sm flex items-center justify-center mx-auto mb-4 text-accent shadow-sm">
                     <Droplets className="h-6 w-6" />
                   </div>
                   <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Humidity</p>
                   <h4 className="text-4xl font-black text-text-primary tracking-tighter">{activeDevice.humidity}%</h4>
                 </div>
-                <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 text-center">
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 text-emerald-500 shadow-sm">
+                <div className="bg-app-bg p-8 rounded-sm border border-border-subtle text-center">
+                  <div className="w-12 h-12 bg-card-bg rounded-sm flex items-center justify-center mx-auto mb-4 text-emerald-500 shadow-sm">
                     <Zap className="h-6 w-6" />
                   </div>
                   <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Device Health</p>
@@ -238,7 +251,7 @@ const DeviceDashboard = () => {
             </div>
 
             {/* AI Predictive Maintenance */}
-            <div className="bg-gradient-to-br from-indigo-900 to-slate-900 p-10 rounded-[40px] text-white shadow-2xl relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-secondary to-surface-dark p-10 rounded-[40px] text-white shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 blur-[100px] rounded-full"></div>
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-10">
@@ -248,9 +261,9 @@ const DeviceDashboard = () => {
                     </h3>
                     <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest mt-1">Machine Learning Analysis Engine</p>
                   </div>
-                  <div className="px-4 py-2 bg-white/10 rounded-xl border border-white/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                  <div className="px-4 py-2 bg-card-bg/10 rounded-sm border border-card-bg/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-accent" />
-                    Neural Link Active
+                    AI Status Active
                   </div>
                 </div>
 
@@ -258,25 +271,25 @@ const DeviceDashboard = () => {
                   <div className="space-y-8">
                     <div>
                       <div className="flex justify-between items-end mb-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Node Life Expectancy</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Estimated Lifespan</span>
                         <span className="text-sm font-black text-emerald-400">842 Days Left</span>
                       </div>
-                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                        <motion.div initial={{ width: 0 }} animate={{ width: '85%' }} className="h-full bg-emerald-500"></motion.div>
+                      <div className="h-2 bg-card-bg/5 rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: '85%' }} className="h-full bg-status-success"></motion.div>
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between items-end mb-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Component Wear Factor</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Component Wear Factor</span>
                         <span className="text-sm font-black text-amber-400">Low (12%)</span>
                       </div>
-                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-2 bg-card-bg/5 rounded-full overflow-hidden">
                         <motion.div initial={{ width: 0 }} animate={{ width: '12%' }} className="h-full bg-amber-500"></motion.div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-6 bg-white/5 border border-white/10 rounded-3xl">
+                  <div className="p-6 bg-card-bg/5 border border-card-bg/10 rounded-sm">
                     <div className="flex items-center gap-3 mb-4">
                       <Wrench className="h-5 w-5 text-accent" />
                       <h4 className="text-[10px] font-black uppercase tracking-widest">Maintenance Alert</h4>
@@ -284,7 +297,7 @@ const DeviceDashboard = () => {
                     <p className="text-xs text-white/60 leading-relaxed font-medium mb-6">
                       AI model predicts high probability of capacitor fatigue in the next 120 days based on usage patterns. Recommendation: Schedule preventive inspection.
                     </p>
-                    <button className="w-full py-3 bg-accent text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:shadow-lg transition-all shadow-accent/20">
+                    <button className="w-full py-3 bg-accent text-white text-[10px] font-black uppercase tracking-widest rounded-sm hover:shadow-lg transition-all shadow-accent/20">
                       Order Replacement Kit
                     </button>
                   </div>
@@ -293,7 +306,7 @@ const DeviceDashboard = () => {
             </div>
 
             {/* Analytics - Advanced Charting */}
-            <div className="bg-white p-10 rounded-[40px] border border-border-main shadow-sm">
+            <div className="bg-card-bg p-10 rounded-[40px] border border-border-main shadow-sm">
               <div className="flex items-center justify-between mb-10">
                 <div>
                   <h3 className="text-xl font-black text-text-primary uppercase tracking-tighter flex items-center gap-3">
@@ -301,9 +314,9 @@ const DeviceDashboard = () => {
                   </h3>
                   <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest mt-1">Deep packet inspection telemetry</p>
                 </div>
-                <div className="flex bg-slate-50 p-1 rounded-xl">
+                <div className="flex bg-app-bg p-1 rounded-sm">
                   {['Live', 'History'].map(v => (
-                    <button key={v} className={`px-5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${v === 'Live' ? 'bg-white text-accent shadow-sm' : 'text-text-muted hover:text-text-primary'}`}>
+                    <button key={v} className={`px-5 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all ${v === 'Live' ? 'bg-card-bg text-accent shadow-sm' : 'text-text-muted hover:text-text-primary'}`}>
                       {v}
                     </button>
                   ))}
@@ -316,28 +329,28 @@ const DeviceDashboard = () => {
                     <span className="text-[10px] font-black text-text-primary uppercase tracking-widest">Processing Load</span>
                     <span className="text-sm font-black text-accent">42%</span>
                   </div>
-                  <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                  <div className="h-2 bg-app-bg rounded-full overflow-hidden border border-border-subtle">
                     <motion.div initial={{ width: 0 }} animate={{ width: '42%' }} className="h-full bg-accent"></motion.div>
                   </div>
                   
                   <div className="flex justify-between items-end mb-4">
                     <span className="text-[10px] font-black text-text-primary uppercase tracking-widest">Memory Utilization</span>
-                    <span className="text-sm font-black text-blue-500">28%</span>
+                    <span className="text-sm font-black text-accent">28%</span>
                   </div>
-                  <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                    <motion.div initial={{ width: 0 }} animate={{ width: '28%' }} className="h-full bg-blue-500"></motion.div>
+                  <div className="h-2 bg-app-bg rounded-full overflow-hidden border border-border-subtle">
+                    <motion.div initial={{ width: 0 }} animate={{ width: '28%' }} className="h-full bg-accent"></motion.div>
                   </div>
 
                   <div className="flex justify-between items-end mb-4">
                     <span className="text-[10px] font-black text-text-primary uppercase tracking-widest">Network Jitter</span>
                     <span className="text-sm font-black text-emerald-500">12ms</span>
                   </div>
-                  <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                    <motion.div initial={{ width: 0 }} animate={{ width: '15%' }} className="h-full bg-emerald-500"></motion.div>
+                  <div className="h-2 bg-app-bg rounded-full overflow-hidden border border-border-subtle">
+                    <motion.div initial={{ width: 0 }} animate={{ width: '15%' }} className="h-full bg-status-success"></motion.div>
                   </div>
                 </div>
 
-                <div className="bg-slate-900 rounded-3xl p-8 flex flex-col justify-between border border-white/10 shadow-2xl">
+                <div className="bg-surface-dark rounded-sm p-8 flex flex-col justify-between border border-card-bg/10 shadow-2xl">
                   <div>
                     <h4 className="text-white text-[10px] font-black uppercase tracking-widest mb-6 flex items-center gap-2">
                       <Shield className="h-4 w-4 text-accent" /> Security Protocol
@@ -346,8 +359,8 @@ const DeviceDashboard = () => {
                       All telemetry is end-to-end encrypted using AES-256. Connection is persistent via MQTT over WebSockets.
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 pt-6 border-t border-white/5">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                  <div className="flex items-center gap-3 pt-6 border-t border-card-bg/5">
+                    <div className="w-2 h-2 bg-status-success rounded-full animate-pulse"></div>
                     <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Secure Link Established</span>
                   </div>
                 </div>
@@ -361,24 +374,24 @@ const DeviceDashboard = () => {
       {/* Add Device Modal */}
       <AnimatePresence>
         {showAddModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-lg rounded-[40px] p-12 shadow-2xl relative">
-              <button onClick={() => setShowAddModal(false)} className="absolute top-10 right-10 p-2 hover:bg-slate-50 rounded-full transition-all">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-surface-dark/80 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-card-bg w-full max-w-lg rounded-[40px] p-12 shadow-2xl relative">
+              <button onClick={() => setShowAddModal(false)} className="absolute top-10 right-10 p-2 hover:bg-app-bg rounded-full transition-all">
                 <X className="h-5 w-5" />
               </button>
               <div className="text-center mb-10">
-                <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-accent">
+                <div className="w-16 h-16 bg-accent/10 rounded-sm flex items-center justify-center mx-auto mb-6 text-accent">
                   <Radio className="h-8 w-8" />
                 </div>
-                <h3 className="text-2xl font-black text-text-primary uppercase tracking-tight">Provision Node</h3>
+                <h3 className="text-2xl font-black text-text-primary uppercase tracking-tight">Add New Device</h3>
               </div>
               <form onSubmit={handleAddDevice} className="space-y-8">
                 <input 
                   type="text" 
                   value={newDeviceId}
                   onChange={(e) => setNewDeviceId(e.target.value)}
-                  placeholder="Hardware Signature (ID)"
-                  className="w-full px-6 py-4 bg-slate-50 border border-border-main rounded-2xl text-sm font-black text-text-primary focus:border-accent outline-none"
+                  placeholder="Device ID (e.g. IOT-ESP32-004)"
+                  className="w-full px-6 py-4 bg-app-bg border border-border-main rounded-sm text-sm font-black text-text-primary focus:border-accent outline-none"
                   required
                 />
                 <button type="submit" className="w-full btn-premium py-5 text-sm font-black uppercase tracking-widest">

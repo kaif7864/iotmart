@@ -52,7 +52,7 @@ const AdminIoT = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         
         {/* Global Node Map / Stats */}
-        <div className="lg:col-span-2 bg-white rounded-[40px] border border-border-main p-10 shadow-sm relative overflow-hidden">
+        <div className="lg:col-span-2 bg-card-bg rounded-[40px] border border-border-main p-10 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-[100px] rounded-full"></div>
           <h3 className="text-xl font-black text-text-primary uppercase tracking-tighter mb-10 flex items-center gap-3">
             <Globe className="h-6 w-6 text-accent" /> Active Infrastructure
@@ -60,7 +60,7 @@ const AdminIoT = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-slate-50">
+                <tr className="border-b border-border-subtle">
                   <th className="py-6 px-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Device Node</th>
                   <th className="py-6 px-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Assignee</th>
                   <th className="py-6 px-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Firmware</th>
@@ -70,7 +70,7 @@ const AdminIoT = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {fleet.map((dev, i) => (
-                  <tr key={i} className="group hover:bg-slate-50/50 transition-all">
+                  <tr key={i} className="group hover:bg-app-bg/50 transition-all">
                     <td className="py-6 px-4">
                       <div className="flex items-center gap-3">
                         <Cpu className="h-4 w-4 text-accent" />
@@ -85,7 +85,7 @@ const AdminIoT = () => {
                     <td className="py-6 px-4 text-[10px] font-black text-text-muted uppercase tracking-widest">{dev.uptime}</td>
                     <td className="py-6 px-4">
                       <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-widest ${dev.status === 'Healthy' ? 'text-emerald-600' : 'text-amber-500'}`}>
-                        <div className={`w-2 h-2 rounded-full animate-pulse ${dev.status === 'Healthy' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${dev.status === 'Healthy' ? 'bg-status-success' : 'bg-amber-500'}`}></div>
                         {dev.status}
                       </div>
                     </td>
@@ -97,7 +97,7 @@ const AdminIoT = () => {
         </div>
 
         {/* Live Update Log */}
-        <div className="bg-slate-900 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden flex flex-col">
+        <div className="bg-surface-dark rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden flex flex-col">
           <div className="absolute top-0 right-0 w-32 h-32 bg-accent/30 blur-[60px] rounded-full"></div>
           <h3 className="text-lg font-black uppercase tracking-tight mb-8 flex items-center gap-3 relative z-10">
             <Terminal className="h-5 w-5 text-emerald-400" /> Deployment Console
@@ -118,7 +118,7 @@ const AdminIoT = () => {
               )}
             </AnimatePresence>
           </div>
-          <div className="mt-8 pt-8 border-t border-white/5 flex items-center justify-between relative z-10">
+          <div className="mt-8 pt-8 border-t border-card-bg/5 flex items-center justify-between relative z-10">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-accent" />
               <span className="text-[9px] font-black uppercase text-white/40">Secure Tunnel v2</span>

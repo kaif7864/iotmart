@@ -29,9 +29,9 @@ const AdminDashboard = () => {
   }, []);
 
   const kpis = [
-    { label: 'Total Revenue', value: stats?.total_revenue || 0, icon: DollarSign, trend: '+12.5%', color: 'bg-emerald-500', isPrice: true },
-    { label: 'Active Orders', value: stats?.total_orders || 0, icon: ShoppingBag, trend: '+5.2%', color: 'bg-blue-500', isPrice: false },
-    { label: 'Registered Engineers', value: stats?.total_users || 0, icon: Users, trend: '+8.1%', color: 'bg-indigo-500', isPrice: false },
+    { label: 'Total Revenue', value: stats?.total_revenue || 0, icon: DollarSign, trend: '+12.5%', color: 'bg-status-success', isPrice: true },
+    { label: 'Active Orders', value: stats?.total_orders || 0, icon: ShoppingBag, trend: '+5.2%', color: 'bg-accent', isPrice: false },
+    { label: 'Registered Engineers', value: stats?.total_users || 0, icon: Users, trend: '+8.1%', color: 'bg-accent', isPrice: false },
     { label: 'IoT Nodes Online', value: 124, icon: Cpu, trend: '+24.3%', color: 'bg-accent', isPrice: false },
   ];
 
@@ -51,9 +51,9 @@ const AdminDashboard = () => {
           <p className="text-accent text-[10px] font-black uppercase tracking-[0.3em] mb-2">Central Command</p>
           <h1 className="text-4xl font-black text-text-primary tracking-tighter uppercase">Operations <span className="text-accent">Overview</span></h1>
         </div>
-        <div className="flex bg-white border border-border-main p-1 rounded-2xl shadow-sm">
+        <div className="flex bg-card-bg border border-border-main p-1 rounded-sm shadow-sm">
           {['24H', '7D', '30D', 'ALL'].map(t => (
-            <button key={t} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${t === '7D' ? 'bg-accent text-white shadow-lg' : 'text-text-muted hover:text-text-primary'}`}>
+            <button key={t} className={`px-6 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all ${t === '7D' ? 'bg-accent text-white shadow-lg' : 'text-text-muted hover:text-text-primary'}`}>
               {t}
             </button>
           ))}
@@ -68,13 +68,13 @@ const AdminDashboard = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
             key={i} 
-            className="bg-white p-8 rounded-[32px] border border-border-main shadow-sm hover:shadow-xl transition-all group"
+            className="bg-card-bg p-8 rounded-[32px] border border-border-main shadow-sm hover:shadow-xl transition-all group"
           >
             <div className="flex justify-between items-start mb-6">
-              <div className={`p-4 rounded-2xl ${kpi.color} text-white shadow-lg group-hover:scale-110 transition-transform`}>
+              <div className={`p-4 rounded-sm ${kpi.color} text-white shadow-lg group-hover:scale-110 transition-transform`}>
                 <kpi.icon className="h-6 w-6" />
               </div>
-              <div className="flex items-center gap-1 text-emerald-500 font-black text-[10px] bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+              <div className="flex items-center gap-1 text-emerald-500 font-black text-[10px] bg-emerald-50 px-2 py-1 rounded-sm border border-emerald-100">
                 <ArrowUpRight className="h-3 w-3" />
                 {kpi.trend}
               </div>
@@ -90,7 +90,7 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
         
         {/* Revenue Analytics Chart */}
-        <div className="xl:col-span-2 bg-white p-10 rounded-[40px] border border-border-main shadow-sm">
+        <div className="xl:col-span-2 bg-card-bg p-10 rounded-[40px] border border-border-main shadow-sm">
           <div className="flex items-center justify-between mb-12">
             <div>
               <h3 className="text-xl font-black text-text-primary uppercase tracking-tighter flex items-center gap-3">
@@ -99,7 +99,7 @@ const AdminDashboard = () => {
               <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest mt-1">Revenue distribution across components</p>
             </div>
           </div>
-          <div className="h-80 flex items-end gap-4 p-4 bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-100 relative">
+          <div className="h-80 flex items-end gap-4 p-4 bg-app-bg rounded-[32px] border-2 border-dashed border-border-subtle relative">
             {[65, 45, 75, 55, 90, 70, 85, 40, 60, 95, 50, 80].map((h, i) => (
               <motion.div 
                 key={i}
@@ -120,7 +120,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* System Health / IoT Status */}
-        <div className="bg-slate-900 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden">
+        <div className="bg-surface-dark rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 blur-[100px] rounded-full"></div>
           <h3 className="text-xl font-black uppercase tracking-tight mb-10 flex items-center gap-3">
             <Globe className="h-6 w-6 text-accent" /> Global Infrastructure
@@ -128,22 +128,22 @@ const AdminDashboard = () => {
           <div className="space-y-8">
             {[
               { label: 'Broker Uptime', val: '99.99%', icon: ShieldCheck, color: 'text-emerald-400' },
-              { label: 'Storage Cluster', val: '82%', icon: HardDrive, color: 'text-blue-400' },
+              { label: 'Storage Cluster', val: '82%', icon: HardDrive, color: 'text-accent' },
               { label: 'API Latency', val: '24ms', icon: Activity, color: 'text-amber-400' },
               { label: 'Critical Alerts', val: '0 Active', icon: Bell, color: 'text-white' },
             ].map((sys, i) => (
               <div key={i} className="flex items-center justify-between group">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white/5 rounded-xl border border-white/10 group-hover:bg-accent/20 transition-all">
+                  <div className="p-3 bg-card-bg/5 rounded-sm border border-card-bg/10 group-hover:bg-accent/20 transition-all">
                     <sys.icon className={`h-5 w-5 ${sys.color}`} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{sys.label}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">{sys.label}</span>
                 </div>
                 <span className="text-sm font-black uppercase">{sys.val}</span>
               </div>
             ))}
           </div>
-          <button className="w-full mt-12 py-4 bg-white/10 border border-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-slate-900 transition-all">
+          <button className="w-full mt-12 py-4 bg-card-bg/10 border border-card-bg/20 rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-card-bg hover:text-text-primary transition-all">
             System Diagnostics
           </button>
         </div>
@@ -151,7 +151,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Recent Orders Table Integration */}
-      <div className="bg-white p-10 rounded-[40px] border border-border-main shadow-sm">
+      <div className="bg-card-bg p-10 rounded-[40px] border border-border-main shadow-sm">
         <div className="flex items-center justify-between mb-10">
           <h3 className="text-xl font-black text-text-primary uppercase tracking-tighter">Live Order Stream</h3>
           <button className="text-[10px] font-black text-accent uppercase tracking-widest hover:underline">Monitor All</button>
@@ -159,7 +159,7 @@ const AdminDashboard = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-slate-50">
+              <tr className="border-b border-border-subtle">
                 <th className="py-6 px-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Order ID</th>
                 <th className="py-6 px-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Customer</th>
                 <th className="py-6 px-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Revenue</th>
@@ -168,12 +168,12 @@ const AdminDashboard = () => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {[1, 2, 3].map(i => (
-                <tr key={i} className="group hover:bg-slate-50/50 transition-all">
+                <tr key={i} className="group hover:bg-app-bg/50 transition-all">
                   <td className="py-6 px-4 font-black text-xs text-text-primary uppercase">#IM-8291-{i}</td>
                   <td className="py-6 px-4 font-bold text-xs text-text-secondary uppercase">Engineer {i}</td>
                   <td className="py-6 px-4 font-black text-sm text-text-primary">{formatPrice(1249 * i)}</td>
                   <td className="py-6 px-4">
-                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-widest">Deployed</span>
+                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-sm text-[9px] font-black uppercase tracking-widest">Deployed</span>
                   </td>
                 </tr>
               ))}

@@ -1,13 +1,32 @@
 import React, { createContext, useContext, useState } from 'react';
-import { getUsers, toggleWishlist as apiToggleWishlist, addAddress as apiAddAddress, removeAddress as apiRemoveAddress } from '../services/api';
+import { getUsers, addAddress as apiAddAddress, removeAddress as apiRemoveAddress, loginUser, signupUser } from '../services/api';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [wishlist, setWishlist] = useState([]);
-  const [addresses, setAddresses] = useState([]);
+  const [user, setUser] = useState(() => {
+    const session = localStorage.getItem('user_session');
+    return session ? JSON.parse(session) : null;
+  });
+  
+  const [isAdmin, setIsAdmin] = useState(() => {
+    const session = localStorage.getItem('user_session');
+    if (session) {
+      const parsed = JSON.parse(session);
+      return parsed.role === 'admin';
+    }
+    return false;
+  });
+
+  const [addresses, setAddresses] = useState(() => {
+    const session = localStorage.getItem('user_session');
+    if (session) {
+      const parsed = JSON.parse(session);
+      return parsed.addresses || [];
+    }
+    return [];
+  });
+  
   const [currency, setCurrency] = useState({ code: 'INR', symbol: '₹', rate: 83.5 });
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Welcome to IoTMart', message: 'Your engineering account is now active.', type: 'info', time: 'Just now', read: false },
@@ -46,9 +65,9 @@ export const AuthProvider = ({ children }) => {
       setUser(data.user);
       setIsAdmin(data.user.role === 'admin');
       setAddresses(data.user.addresses || []);
-      return { success: true };
+      return { success: true, user: data.user };
     } catch (error) {
-      return { success: false, message: error.response?.data?.detail || 'Neural link failed' };
+      return { success: false, message: error.response?.data?.detail || 'Login failed. Please check your credentials.' };
     }
   };
 
@@ -64,27 +83,13 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     setIsAdmin(false);
-    setWishlist([]);
+
     setAddresses([]);
     localStorage.removeItem('user_session');
     localStorage.removeItem('token');
   };
 
-  const toggleWishlist = async (product) => {
-    if (!user) return;
-    try {
-      const response = await apiToggleWishlist(user._id, product._id);
-      // Re-hydrate wishlist from response IDs
-      const allProducts = await (await fetch('http://localhost:8000/api/products')).json();
-      const hydrated = allProducts.filter(p => response.wishlist.includes(p._id));
-      setWishlist(hydrated);
-    } catch (error) {
-      if (error.response?.status === 404) {
-        logout();
-      }
-      console.error('Wishlist sync failed:', error);
-    }
-  };
+
 
   const addAddress = async (newAddress) => {
     if (!user) return;
@@ -109,11 +114,11 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{ 
       user, 
+      setUser,
       isAdmin, 
       login, 
       logout, 
-      wishlist, 
-      toggleWishlist,
+
       addresses,
       addAddress,
       removeAddress,
