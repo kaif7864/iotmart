@@ -1,6 +1,7 @@
 import redis.asyncio as redis
 import os
 import json
+import asyncio
 from core.config import settings
 
 redis_client = None
@@ -18,7 +19,7 @@ async def init_redis():
             socket_connect_timeout=3
         )
         # Test connection so it fails fast
-        await redis_client.ping()
+        await asyncio.wait_for(redis_client.ping(), timeout=3.0)
         print("Connected to Redis")
     except Exception as e:
         print(f"Failed to connect to Redis: {e}")
@@ -33,7 +34,7 @@ async def get_cache(key: str):
     if not redis_client:
         return None
     try:
-        data = await redis_client.get(key)
+        data = await asyncio.wait_for(redis_client.get(key), timeout=2.0)
         return json.loads(data) if data else None
     except Exception as e:
         print(f"Redis get error: {e}")
@@ -43,7 +44,7 @@ async def set_cache(key: str, data: dict, expire: int = 300):
     if not redis_client:
         return False
     try:
-        await redis_client.setex(key, expire, json.dumps(data))
+        await asyncio.wait_for(redis_client.setex(key, expire, json.dumps(data)), timeout=2.0)
         return True
     except Exception as e:
         print(f"Redis set error: {e}")
@@ -53,8 +54,8 @@ async def delete_cache(pattern: str):
     if not redis_client:
         return
     try:
-        keys = await redis_client.keys(pattern)
+        keys = await asyncio.wait_for(redis_client.keys(pattern), timeout=2.0)
         if keys:
-            await redis_client.delete(*keys)
+            await asyncio.wait_for(redis_client.delete(*keys), timeout=2.0)
     except Exception as e:
         print(f"Redis delete error: {e}")

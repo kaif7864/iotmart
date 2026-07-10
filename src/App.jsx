@@ -43,6 +43,7 @@ const AdminIoT = lazy(() => import('./pages/admin/AdminIoT'));
 // Components
 import ChatSupport from './components/feedback/ChatSupport';
 import Toast from './components/feedback/Toast';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 const LoadingScreen = () => (
   <div className="fixed inset-0 bg-app-bg z-[999] flex flex-col p-8 lg:p-32">
@@ -55,9 +56,10 @@ const LoadingScreen = () => (
 
 function App() {
   return (
-    <AuthProvider>
-      <ComparisonProvider>
-        <CartProvider>
+    <GoogleOAuthProvider clientId="95030813967-u0po79ptsibocs7653c2nk2jiajokek8.apps.googleusercontent.com">
+      <AuthProvider>
+        <ComparisonProvider>
+          <CartProvider>
           <WishlistProvider>
           <Router>
           <Toaster position="top-center" toastOptions={{ style: { fontWeight: 'bold', fontSize: '12px' } }} />
@@ -107,11 +109,12 @@ function App() {
           </Suspense>
 
           {/* <ChatSupport /> */}
-        </Router>
+            </Router>
           </WishlistProvider>
-        </CartProvider>
-      </ComparisonProvider>
-    </AuthProvider>
+          </CartProvider>
+        </ComparisonProvider>
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
 

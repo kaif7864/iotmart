@@ -56,6 +56,23 @@ export const AuthProvider = ({ children }) => {
     if (currencies[code]) setCurrency(currencies[code]);
   };
 
+  const googleLogin = async (credential) => {
+    try {
+      // Lazy import to avoid circular dependencies if any
+      const { loginWithGoogle } = await import('../services/auth.service');
+      const data = await loginWithGoogle(credential);
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user_session', JSON.stringify(data.user));
+      
+      setUser(data.user);
+      setIsAdmin(data.user.role === 'admin');
+      setAddresses(data.user.addresses || []);
+      return { success: true, user: data.user };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.detail || 'Google Login failed.' };
+    }
+  };
+
   const login = async (credentials) => {
     try {
       const data = await loginUser(credentials);
@@ -81,13 +98,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    setUser(null);
-    setIsAdmin(false);
-
-    setAddresses([]);
     localStorage.removeItem('user_session');
     localStorage.removeItem('token');
     localStorage.removeItem('iotmart_cart');
+    
+    // Dispatch event to clear other contexts BEFORE page reload
+    window.dispatchEvent(new Event('auth-logout'));
+    
+    // Set states to null after local storage is clear
+    setUser(null);
+    setIsAdmin(false);
+    setAddresses([]);
     
     // Force a full reload to clear all React Context states (like Cart, Wishlist)
     window.location.href = '/';
@@ -120,7 +141,8 @@ export const AuthProvider = ({ children }) => {
       user, 
       setUser,
       isAdmin, 
-      login, 
+      login,
+      googleLogin, 
       signup,
       logout, 
 

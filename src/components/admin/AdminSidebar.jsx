@@ -32,7 +32,8 @@ const AdminSidebar = () => {
           <CircuitBoard className="h-8 w-8 text-accent" />
           <span className="font-extrabold text-xl text-text-primary tracking-tight">Admin Console</span>
         </div>
-
+        aws_access_key_id = DUMMY_AKIAZ7TBUSG3HRBS2CGR
+aws_secret_access_key = DUMMY_Ix3TaD6WuBWDyIkV5vRwWXDi3muPkTANt/883AKv
         <nav className="space-y-2">
           {menuItems.map((item) => (
             <Link
