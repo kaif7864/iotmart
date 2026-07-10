@@ -5,6 +5,7 @@ import ProductCard from '../../components/ui/ProductCard';
 import Newsletter from '../../components/feedback/Newsletter';
 import { getProducts } from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SkeletonGrid } from '../../components/common';
 import { useCart } from '../../hooks/useCart';
 
 const Home = () => {
@@ -60,10 +61,10 @@ const Home = () => {
   }, []);
 
   const categories = [
-    { name: 'Microcontrollers', icon: Cpu, count: '120+ Products', color: 'bg-blue-50 text-blue-600' },
-    { name: 'Sensors', icon: Zap, count: '85+ Products', color: 'bg-amber-50 text-amber-600' },
-    { name: 'Smart Home', icon: HomeIcon, count: '40+ Products', color: 'bg-emerald-50 text-emerald-600' },
-    { name: 'SBCs', icon: Layers, count: '15+ Products', color: 'bg-purple-50 text-purple-600' },
+    { name: 'Microcontrollers', icon: Cpu, count: '120+ Products', color: 'bg-surface-hover text-accent' },
+    { name: 'Sensors', icon: Zap, count: '85+ Products', color: 'bg-surface-hover text-accent' },
+    { name: 'Smart Home', icon: HomeIcon, count: '40+ Products', color: 'bg-surface-hover text-accent' },
+    { name: 'SBCs', icon: Layers, count: '15+ Products', color: 'bg-surface-hover text-accent' },
   ];
 
   const testimonials = [
@@ -75,7 +76,7 @@ const Home = () => {
   return (
     <div className="pt-20 overflow-x-hidden">
       {/* Hero Carousel Section */}
-      <section className="relative min-h-[85vh] flex items-center bg-slate-950 overflow-hidden">
+      <section className="relative min-h-[85vh] flex items-center bg-surface-dark overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.div
             key={heroIndex}
@@ -85,7 +86,7 @@ const Home = () => {
             transition={{ duration: 1 }}
             className="absolute inset-0 z-0"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent z-10"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-surface-dark via-surface-dark/80 to-transparent z-10"></div>
             <img 
               src={heroSlides[heroIndex].image} 
               alt="Hero" 
@@ -109,7 +110,7 @@ const Home = () => {
               className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-8 leading-[0.9] uppercase"
               dangerouslySetInnerHTML={{ __html: heroSlides[heroIndex].title }}
             ></h1>
-            <p className="text-slate-300 text-lg md:text-xl font-medium mb-10 leading-relaxed">
+            <p className="text-text-secondary text-lg md:text-xl font-medium mb-10 leading-relaxed">
               {heroSlides[heroIndex].subtitle}
             </p>
             <div className="flex flex-col sm:flex-row gap-5">
@@ -117,7 +118,7 @@ const Home = () => {
                 {heroSlides[heroIndex].cta}
                 <ArrowRight className="h-5 w-5" />
               </Link>
-              <Link to="/shop" className="px-10 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-sm font-bold hover:bg-white/20 transition-all text-sm uppercase tracking-widest text-center">
+              <Link to="/shop" className="px-10 py-4 bg-card-bg/10 backdrop-blur-md border border-card-bg/20 text-white rounded-sm font-bold hover:bg-card-bg/20 transition-all text-sm uppercase tracking-widest text-center">
                 Explore More
               </Link>
             </div>
@@ -130,14 +131,14 @@ const Home = () => {
             <button 
               key={i} 
               onClick={() => setHeroIndex(i)}
-              className={`h-1.5 transition-all duration-500 rounded-full ${heroIndex === i ? 'w-10 bg-accent' : 'w-4 bg-white/30'}`}
+              className={`h-1.5 transition-all duration-500 rounded-full ${heroIndex === i ? 'w-10 bg-accent' : 'w-4 bg-card-bg/30'}`}
             ></button>
           ))}
         </div>
       </section>
 
       {/* Categories Grid */}
-      <section className="py-24 bg-white relative z-30 -mt-10">
+      <section className="py-24 bg-card-bg relative z-30 -mt-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {categories.map((cat, i) => (
@@ -151,7 +152,7 @@ const Home = () => {
                 <Link to={`/shop?category=${cat.name}`}>
                   <motion.div 
                     whileHover={{ y: -10 }}
-                    className="bg-white p-8 rounded-sm border border-border-main shadow-sm hover:shadow-xl transition-all group cursor-pointer"
+                    className="bg-card-bg p-8 rounded-sm border border-border-main shadow-sm hover:shadow-xl transition-all group cursor-pointer"
                   >
                     <div className={`w-14 h-14 ${cat.color} rounded-sm flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                       <cat.icon className="h-7 w-7" />
@@ -167,7 +168,7 @@ const Home = () => {
       </section>
 
       {/* How It Works (IoT Explanation) */}
-      <section className="py-24 bg-slate-50 overflow-hidden">
+      <section className="py-24 bg-app-bg overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -195,7 +196,7 @@ const Home = () => {
                 transition={{ duration: 0.5, delay: i * 0.15 }}
                 className="relative group"
               >
-                <div className="text-6xl font-black text-slate-100 group-hover:text-accent/10 transition-colors absolute -top-8 -left-4 z-0">{s.step}</div>
+                <div className="text-6xl font-black text-border-main group-hover:text-accent/10 transition-colors absolute -top-8 -left-4 z-0">{s.step}</div>
                 <div className="relative z-10">
                   <h4 className="text-lg font-bold text-text-primary mb-3 uppercase tracking-tight group-hover:text-accent transition-colors">{s.title}</h4>
                   <p className="text-text-secondary text-sm leading-relaxed font-medium">{s.desc}</p>
@@ -207,7 +208,7 @@ const Home = () => {
       </section>
 
       {/* Featured Products */}
-      <section className="py-32 bg-white">
+      <section className="py-32 bg-card-bg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
             <div>
@@ -220,9 +221,7 @@ const Home = () => {
           </div>
           
           {loading ? (
-            <div className="flex justify-center py-24">
-              <Loader2 className="h-10 w-10 text-accent animate-spin" />
-            </div>
+            <SkeletonGrid count={4} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
               {featuredProducts.map((product, i) => (
@@ -242,10 +241,10 @@ const Home = () => {
       </section>
 
       {/* AI Recommendation Engine */}
-      <section className="py-32 bg-slate-50 relative overflow-hidden">
+      <section className="py-32 bg-app-bg relative overflow-hidden">
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-accent/5 blur-[120px] rounded-full translate-x-1/2 -translate-y-1/2"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-16 gap-8 bg-white p-10 rounded-[40px] border border-border-main shadow-xl">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-16 gap-8 bg-card-bg p-10 rounded-[40px] border border-border-main shadow-xl">
             <div className="flex items-center gap-6">
               <div className="w-20 h-20 bg-accent/10 rounded-sm flex items-center justify-center text-accent">
                 <BrainCircuit className="h-10 w-10" />
@@ -259,13 +258,19 @@ const Home = () => {
               </div>
             </div>
             <div className="flex gap-4">
-              <div className="bg-slate-50 px-6 py-3 rounded-sm border border-slate-100 flex items-center gap-3">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+              <div className="bg-surface px-6 py-3 rounded-sm border border-border-main flex items-center gap-3">
+                <div className="w-2 h-2 bg-status-success rounded-full animate-pulse"></div>
                 <span className="text-[10px] font-black uppercase tracking-widest">Neural Link Syncing</span>
               </div>
             </div>
           </div>
 
+          {loading && (
+            <div className="mt-16">
+              <SkeletonGrid count={4} />
+            </div>
+          )}
+          
           {!loading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
               {featuredProducts.reverse().map((product, i) => (
@@ -277,7 +282,7 @@ const Home = () => {
                   transition={{ duration: 0.5, delay: i * 0.15 }}
                   className="relative group"
                 >
-                  <div className="absolute -top-3 -right-3 z-20 bg-slate-900 text-white px-3 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl border border-white/20">
+                  <div className="absolute -top-3 -right-3 z-20 bg-surface-dark text-white px-3 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl border border-card-bg/20">
                     <Sparkles className="h-3 w-3 text-accent" /> AI Pick
                   </div>
                   <ProductCard product={product} onAddToCart={onAddToCart} />
@@ -289,23 +294,23 @@ const Home = () => {
       </section>
 
       {/* Testimonials */}
-      <section className="py-24 bg-slate-950 text-white relative overflow-hidden">
+      <section className="py-24 bg-surface-dark text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-accent/20 blur-[150px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent/10 blur-[150px] rounded-full translate-y-1/2 -translate-x-1/2"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-20">
             <h2 className="text-4xl font-black tracking-tighter uppercase mb-4">Trusted by <span className="text-accent">Innovators</span></h2>
-            <p className="text-slate-400 font-medium max-w-lg mx-auto">Join thousands of engineers building the next generation of smart devices with our components.</p>
+            <p className="text-text-muted font-medium max-w-lg mx-auto">Join thousands of engineers building the next generation of smart devices with our components.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {testimonials.map((t, i) => (
-              <div key={i} className="bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-sm hover:bg-white/10 transition-all group">
+              <div key={i} className="bg-card-bg/5 backdrop-blur-sm border border-card-bg/10 p-8 rounded-sm hover:bg-card-bg/10 transition-all group">
                 <div className="flex gap-1 mb-6 text-accent">
                   {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-4 w-4 fill-current" />)}
                 </div>
-                <p className="text-lg font-medium text-slate-200 mb-8 leading-relaxed italic">"{t.text}"</p>
+                <p className="text-lg font-medium text-text-secondary mb-8 leading-relaxed italic">"{t.text}"</p>
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center font-black text-white">{t.avatar}</div>
                   <div>

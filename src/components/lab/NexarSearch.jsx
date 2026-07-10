@@ -2,8 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Loader2, ExternalLink, ShoppingCart, Plus, ChevronDown, ChevronUp, Package, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const API_URL = 'http://localhost:8000/api';
+import apiClient from '../../services/api.client';
 
 const NexarSearch = ({ onAddToCanvas, onAddToCart }) => {
   const [query, setQuery] = useState('');
@@ -19,17 +18,12 @@ const NexarSearch = ({ onAddToCanvas, onAddToCart }) => {
     setError('');
     setResults([]);
     try {
-      const res = await fetch(`${API_URL}/nexar/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query.trim(), limit: 6 }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Search failed');
+      const res = await apiClient.post('/nexar/search', { query: query.trim(), limit: 6 });
+      const data = res.data;
       setResults(data.results || []);
       if (data.results.length === 0) setError('No components found. Try a different search term.');
     } catch (e) {
-      setError(e.message);
+      setError(e.response?.data?.detail || e.message || 'Search failed');
     } finally {
       setLoading(false);
     }
@@ -38,13 +32,8 @@ const NexarSearch = ({ onAddToCanvas, onAddToCart }) => {
   const handleAIMagic = async (partName) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/ai/generate-part`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ part_name: partName }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'AI Generation failed');
+      const res = await apiClient.post('/ai/generate-part', { part_name: partName });
+      const data = res.data;
       
       const comp = {
         ...data,

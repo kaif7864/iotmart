@@ -39,7 +39,7 @@ const TrackOrder = () => {
     { label: 'Pending', icon: Clock, color: 'text-amber-500' },
     { label: 'Processing', icon: Package, color: 'text-accent' },
     { label: 'Shipped', icon: Truck, color: 'text-accent' },
-    { label: 'Delivered', icon: CheckCircle, color: 'text-emerald-500' }
+    { label: 'Delivered', icon: CheckCircle, color: 'text-status-success' }
   ];
 
   const currentStepIndex = order ? steps.findIndex(s => s.label === order.status) : -1;
@@ -82,7 +82,7 @@ const TrackOrder = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="p-6 bg-red-50 border border-red-100 rounded-[24px] flex items-center gap-4 text-red-600 mb-8"
+              className="p-6 bg-status-danger-bg border border-status-danger/20 rounded-[24px] flex items-center gap-4 text-status-danger mb-8"
             >
               <Info className="h-6 w-6 shrink-0" />
               <p className="text-sm font-black uppercase tracking-tight">{error}</p>

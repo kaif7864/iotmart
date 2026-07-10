@@ -87,6 +87,10 @@ export const AuthProvider = ({ children }) => {
     setAddresses([]);
     localStorage.removeItem('user_session');
     localStorage.removeItem('token');
+    localStorage.removeItem('iotmart_cart');
+    
+    // Force a full reload to clear all React Context states (like Cart, Wishlist)
+    window.location.href = '/';
   };
 
 
@@ -117,6 +121,7 @@ export const AuthProvider = ({ children }) => {
       setUser,
       isAdmin, 
       login, 
+      signup,
       logout, 
 
       addresses,

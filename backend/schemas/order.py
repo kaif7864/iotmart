@@ -15,6 +15,7 @@ class OrderBase(BaseModel):
     status: str = "Pending"
     address: str
     payment_method: str = "COD"
+    payment_id: Optional[str] = None
     tracking_id: Optional[str] = None
     shipping_method: str = "Standard"
 

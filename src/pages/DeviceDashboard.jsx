@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import AddDeviceModal from '../components/dashboard/AddDeviceModal';
 
 const DeviceDashboard = () => {
   const { user } = useAuth();
@@ -120,7 +121,7 @@ const DeviceDashboard = () => {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-2 h-2 bg-status-success rounded-full animate-ping"></div>
-              <p className="text-emerald-600 text-[10px] font-black uppercase tracking-[0.3em]">MQTT Broker Online</p>
+              <p className="text-status-success text-[10px] font-black uppercase tracking-[0.3em]">MQTT Broker Online</p>
             </div>
             <h1 className="text-4xl font-black text-text-primary tracking-tighter uppercase leading-none">Real-Time <span className="text-accent">Monitoring</span></h1>
           </div>
@@ -174,10 +175,10 @@ const DeviceDashboard = () => {
             <div className="bg-surface-dark rounded-sm p-6 shadow-2xl overflow-hidden relative group">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Terminal className="h-4 w-4 text-emerald-400" />
+                  <Terminal className="h-4 w-4 text-status-success" />
                   <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Telemetry Stream</span>
                 </div>
-                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                <div className="w-1.5 h-1.5 bg-status-success rounded-full animate-pulse"></div>
               </div>
               <div className="font-mono text-[10px] space-y-2 h-40 overflow-hidden">
                 <AnimatePresence mode="popLayout">
@@ -186,7 +187,7 @@ const DeviceDashboard = () => {
                       key={i}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="text-emerald-400/80 leading-relaxed truncate"
+                      className="text-status-success/80 leading-relaxed truncate"
                     >
                       <span className="text-white/20 mr-2">{'>'}</span> {log}
                     </motion.div>
@@ -204,7 +205,7 @@ const DeviceDashboard = () => {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12 relative z-10">
                 <div>
                   <h2 className="text-3xl font-black text-text-primary uppercase tracking-tighter">{activeDevice.name}</h2>
-                  <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mt-1">Status: <span className={activeDevice.status === 'Online' ? 'text-emerald-600' : 'text-status-danger'}>{activeDevice.status}</span> • ID: {activeDevice.id}</p>
+                  <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mt-1">Status: <span className={activeDevice.status === 'Online' ? 'text-status-success' : 'text-status-danger'}>{activeDevice.status}</span> • ID: {activeDevice.id}</p>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
@@ -241,7 +242,7 @@ const DeviceDashboard = () => {
                   <h4 className="text-4xl font-black text-text-primary tracking-tighter">{activeDevice.humidity}%</h4>
                 </div>
                 <div className="bg-app-bg p-8 rounded-sm border border-border-subtle text-center">
-                  <div className="w-12 h-12 bg-card-bg rounded-sm flex items-center justify-center mx-auto mb-4 text-emerald-500 shadow-sm">
+                  <div className="w-12 h-12 bg-card-bg rounded-sm flex items-center justify-center mx-auto mb-4 text-status-success shadow-sm">
                     <Zap className="h-6 w-6" />
                   </div>
                   <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Device Health</p>
@@ -272,7 +273,7 @@ const DeviceDashboard = () => {
                     <div>
                       <div className="flex justify-between items-end mb-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Estimated Lifespan</span>
-                        <span className="text-sm font-black text-emerald-400">842 Days Left</span>
+                        <span className="text-sm font-black text-status-success">842 Days Left</span>
                       </div>
                       <div className="h-2 bg-card-bg/5 rounded-full overflow-hidden">
                         <motion.div initial={{ width: 0 }} animate={{ width: '85%' }} className="h-full bg-status-success"></motion.div>
@@ -343,7 +344,7 @@ const DeviceDashboard = () => {
 
                   <div className="flex justify-between items-end mb-4">
                     <span className="text-[10px] font-black text-text-primary uppercase tracking-widest">Network Jitter</span>
-                    <span className="text-sm font-black text-emerald-500">12ms</span>
+                    <span className="text-sm font-black text-status-success">12ms</span>
                   </div>
                   <div className="h-2 bg-app-bg rounded-full overflow-hidden border border-border-subtle">
                     <motion.div initial={{ width: 0 }} animate={{ width: '15%' }} className="h-full bg-status-success"></motion.div>
@@ -372,36 +373,13 @@ const DeviceDashboard = () => {
       </div>
 
       {/* Add Device Modal */}
-      <AnimatePresence>
-        {showAddModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-surface-dark/80 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-card-bg w-full max-w-lg rounded-[40px] p-12 shadow-2xl relative">
-              <button onClick={() => setShowAddModal(false)} className="absolute top-10 right-10 p-2 hover:bg-app-bg rounded-full transition-all">
-                <X className="h-5 w-5" />
-              </button>
-              <div className="text-center mb-10">
-                <div className="w-16 h-16 bg-accent/10 rounded-sm flex items-center justify-center mx-auto mb-6 text-accent">
-                  <Radio className="h-8 w-8" />
-                </div>
-                <h3 className="text-2xl font-black text-text-primary uppercase tracking-tight">Add New Device</h3>
-              </div>
-              <form onSubmit={handleAddDevice} className="space-y-8">
-                <input 
-                  type="text" 
-                  value={newDeviceId}
-                  onChange={(e) => setNewDeviceId(e.target.value)}
-                  placeholder="Device ID (e.g. IOT-ESP32-004)"
-                  className="w-full px-6 py-4 bg-app-bg border border-border-main rounded-sm text-sm font-black text-text-primary focus:border-accent outline-none"
-                  required
-                />
-                <button type="submit" className="w-full btn-premium py-5 text-sm font-black uppercase tracking-widest">
-                  Connect Node
-                </button>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AddDeviceModal 
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSubmit={handleAddDevice}
+        newDeviceId={newDeviceId}
+        setNewDeviceId={setNewDeviceId}
+      />
     </div>
   );
 };

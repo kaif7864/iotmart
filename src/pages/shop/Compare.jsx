@@ -34,7 +34,7 @@ const Compare = () => {
           </div>
           <button 
             onClick={clearComparison}
-            className="text-status-danger hover:text-red-600 text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all p-2 hover:bg-red-50 rounded-sm"
+            className="text-status-danger hover:text-status-danger hover:bg-status-danger-bg text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all p-2 rounded-sm"
           >
             <X className="h-4 w-4" /> Clear All
           </button>
@@ -54,7 +54,7 @@ const Compare = () => {
                   <th key={product._id} className="py-8 px-8 border-l border-border-main min-w-[250px] group relative">
                     <button 
                       onClick={() => removeFromCompare(product._id)}
-                      className="absolute top-4 right-4 p-1.5 bg-card-bg border border-border-main rounded-full text-text-muted hover:text-status-danger hover:border-red-200 transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                      className="absolute top-4 right-4 p-1.5 bg-card-bg border border-border-main rounded-full text-text-muted hover:text-status-danger hover:border-status-danger/20 transition-all shadow-sm opacity-0 group-hover:opacity-100"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -75,7 +75,7 @@ const Compare = () => {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border-subtle">
               <tr>
                 <td className="py-5 px-8 text-xs font-bold text-text-muted uppercase tracking-wider bg-app-bg/50">Category</td>
                 {comparisonList.map(p => (
@@ -94,7 +94,7 @@ const Compare = () => {
                 <td className="py-5 px-8 text-xs font-bold text-text-muted uppercase tracking-wider bg-app-bg/50">Availability</td>
                 {comparisonList.map(p => (
                   <td key={p._id} className="py-5 px-8 border-l border-border-main/50">
-                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${p.inStock ? 'text-emerald-600 bg-emerald-50' : 'text-status-danger bg-red-50'}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${p.inStock ? 'text-status-success bg-status-success/10' : 'text-status-danger bg-status-danger-bg'}`}>
                       {p.inStock ? 'In Stock' : 'Sold Out'}
                     </span>
                   </td>
@@ -106,7 +106,7 @@ const Compare = () => {
                   {comparisonList.map(p => (
                     <td key={p._id} className="py-5 px-8 border-l border-border-main/50">
                       {p.specs?.includes(spec) ? (
-                        <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                        <div className="w-6 h-6 bg-status-success/10 rounded-full flex items-center justify-center text-status-success">
                           <Check className="h-3.5 w-3.5" />
                         </div>
                       ) : (

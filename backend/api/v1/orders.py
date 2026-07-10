@@ -22,6 +22,20 @@ async def create_order(order: OrderCreate = Body(...)):
     new_order = await db.orders.find_one({"_id": result.inserted_id})
     new_order["_id"] = str(new_order["_id"])
     
+    # Create Transaction Record
+    from datetime import datetime
+    transaction_doc = {
+        "user_id": new_order["user_id"],
+        "order_id": new_order["_id"],
+        "amount": new_order.get("total", 0),
+        "currency": "INR",
+        "status": "Success" if new_order.get("payment_id") else "Pending",
+        "payment_method": new_order.get("payment_method", "COD"),
+        "payment_id": new_order.get("payment_id"),
+        "created_at": datetime.utcnow()
+    }
+    await db.transactions.insert_one(transaction_doc)
+    
     # Trigger Order Email
     try:
         from services.notification_engine import notify

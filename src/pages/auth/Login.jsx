@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { loginUser, signupUser } from '../../services/api';
-import { Mail, Lock, User, ArrowRight, Cpu, Sparkles, ShieldCheck, CircuitBoard } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, CircuitBoard, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { isValidEmail, isValidPassword } from '../../utils/validators';
+import { isValidEmail } from '../../utils/validators';
 import { handleError } from '../../utils/errorHandler';
 
 const Login = () => {
-  const { login, signup } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
-  const [name, setName] = useState('');
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,49 +30,25 @@ const Login = () => {
       credentials = { email: 'engineer@iotmart.com', password: 'neural123' };
     }
 
-    if (isLogin || demoRole) {
-      if (!demoRole && !isValidEmail(email)) {
-        setError('Invalid email address format.');
-        setIsLoading(false);
-        return;
-      }
-      const result = await login(credentials);
+    if (!demoRole && !isValidEmail(email)) {
+      setError('Invalid email address format.');
       setIsLoading(false);
+      return;
+    }
+    
+    const result = await login(credentials);
+    setIsLoading(false);
 
-      if (result.success) {
-        if (result.user?.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/shop');
-        }
+    if (result.success) {
+      toast.success('Welcome back to IoTMart!');
+      if (result.user?.role === 'admin') {
+        navigate('/admin/dashboard');
       } else {
-        handleError(new Error(result.message || 'Invalid credentials'));
-        setError(result.message || 'Invalid credentials');
+        navigate('/shop');
       }
     } else {
-      if (!isValidEmail(email)) {
-        setError('Invalid email address format.');
-        setIsLoading(false);
-        return;
-      }
-      if (!isValidPassword(password)) {
-        setError('Password must be at least 8 characters long and contain both letters and numbers.');
-        setIsLoading(false);
-        return;
-      }
-
-      // Signup flow
-      const result = await signup({ name, email, password });
-      setIsLoading(false);
-      
-      if (result.success) {
-        // Auto login after signup
-        await login({ email, password });
-        navigate('/shop');
-      } else {
-        handleError(new Error(result.message || 'Registration failed'));
-        setError(result.message || 'Registration failed');
-      }
+      handleError(new Error(result.message || 'Invalid credentials'));
+      setError(result.message || 'Invalid credentials');
     }
   };
 
@@ -89,33 +64,20 @@ const Login = () => {
             <CircuitBoard className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-black text-text-primary text-center uppercase tracking-tighter">
-            {isLogin ? 'Sign In' : 'Create Account'}
+            Sign In
           </h1>
           <p className="text-[10px] font-black text-text-muted mt-2 uppercase tracking-widest">
-            {isLogin ? 'Secure access to IoTMart' : 'Register a new engineering profile'}
+            Secure access to IoTMart
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-widest text-center border border-red-100">
+          <div className="mb-6 p-4 bg-status-danger-bg text-status-danger rounded-lg text-[10px] font-black uppercase tracking-widest text-center border border-status-danger/20">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6 mb-8">
-          {!isLogin && (
-            <div>
-              <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Full Name</label>
-              <input 
-                type="text" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-5 py-4 bg-app-bg border border-border-main rounded-xl text-sm font-bold focus:border-accent outline-none transition-all"
-                placeholder="Tony Stark"
-                required={!isLogin}
-              />
-            </div>
-          )}
           <div>
             <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Email Address</label>
             <input 
@@ -127,23 +89,32 @@ const Login = () => {
               required
             />
           </div>
-          <div>
+          <div className="relative">
             <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Password</label>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-5 py-4 bg-app-bg border border-border-main rounded-xl text-sm font-bold focus:border-accent outline-none transition-all"
-              placeholder="••••••••"
-              required
-            />
+            <div className="relative">
+              <input 
+                type={showPassword ? "text" : "password"} 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-5 pr-12 py-4 bg-app-bg border border-border-main rounded-xl text-sm font-bold focus:border-accent outline-none transition-all"
+                placeholder="••••••••"
+                required
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-accent transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
           <button 
             type="submit"
             disabled={isLoading}
             className="w-full flex items-center justify-center py-4 bg-text-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-accent transition-all shadow-xl disabled:opacity-50"
           >
-            {isLoading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Profile')}
+            {isLoading ? 'Processing...' : 'Sign In'}
           </button>
         </form>
 
@@ -165,12 +136,12 @@ const Login = () => {
         </div>
 
         <div className="text-center mt-8 mb-8">
-          <button 
-            onClick={() => { setIsLogin(!isLogin); setError(''); }}
+          <Link 
+            to="/signup"
             className="text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-accent transition-colors"
           >
-            {isLogin ? "Need an account? Sign Up" : "Already registered? Sign In"}
-          </button>
+            Need an account? Sign Up
+          </Link>
         </div>
 
         <div className="relative mb-8">
@@ -203,10 +174,10 @@ const Login = () => {
           <button 
             onClick={() => handleSubmit(null, 'admin')}
             type="button"
-            className="w-full group flex items-center justify-between p-5 bg-app-bg hover:bg-card-bg border border-border-main hover:border-red-500 rounded-xl transition-all shadow-sm"
+            className="w-full group flex items-center justify-between p-5 bg-app-bg hover:bg-card-bg border border-border-main hover:border-status-danger rounded-xl transition-all shadow-sm"
           >
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-status-danger">
+              <div className="w-10 h-10 rounded-lg bg-status-danger-bg flex items-center justify-center text-status-danger">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div className="text-left">

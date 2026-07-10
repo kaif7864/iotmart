@@ -5,6 +5,7 @@ import { ComparisonProvider } from './context/ComparisonContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { Toaster } from 'react-hot-toast';
+import { Skeleton, SkeletonGrid, SkeletonText } from './components/common';
 
 // Layouts
 import UserLayout from './layouts/UserLayout';
@@ -20,6 +21,7 @@ const ProductDetail = lazy(() => import('./pages/public/ProductDetail'));
 const Cart = lazy(() => import('./pages/shop/Cart'));
 const Checkout = lazy(() => import('./pages/shop/Checkout'));
 const Login = lazy(() => import('./pages/auth/Login'));
+const Signup = lazy(() => import('./pages/auth/Signup'));
 const UserProfile = lazy(() => import('./pages/user/UserProfile'));
 const DeviceDashboard = lazy(() => import('./pages/DeviceDashboard'));
 const About = lazy(() => import('./pages/public/About'));
@@ -43,10 +45,10 @@ import ChatSupport from './components/feedback/ChatSupport';
 import Toast from './components/feedback/Toast';
 
 const LoadingScreen = () => (
-  <div className="fixed inset-0 bg-card-bg z-[999] flex items-center justify-center">
-    <div className="flex flex-col items-center">
-      <div className="w-16 h-16 border-4 border-border-subtle border-t-accent rounded-full animate-spin"></div>
-      <p className="mt-6 text-[10px] font-black text-text-muted uppercase tracking-[0.4em] animate-pulse">Initializing Neural Link...</p>
+  <div className="fixed inset-0 bg-app-bg z-[999] flex flex-col p-8 lg:p-32">
+    <div className="max-w-7xl mx-auto w-full">
+      <SkeletonText lines={1} className="w-48 h-8 mb-12" />
+      <SkeletonGrid count={3} />
     </div>
   </div>
 );
@@ -58,7 +60,7 @@ function App() {
         <CartProvider>
           <WishlistProvider>
           <Router>
-          <Toaster position="top-right" toastOptions={{ style: { fontWeight: 'bold', fontSize: '12px' } }} />
+          <Toaster position="top-center" toastOptions={{ style: { fontWeight: 'bold', fontSize: '12px' } }} />
           <Suspense fallback={<LoadingScreen />}>
             <Routes>
               {/* IoTLab — fullscreen, no navbar */}
@@ -75,6 +77,7 @@ function App() {
                 <Route path="/terms" element={<Legal />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
                 <Route path="/track" element={<TrackOrder />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/support" element={<Support />} />

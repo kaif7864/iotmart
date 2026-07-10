@@ -29,3 +29,8 @@ export const removeAddress = async (userId, addressId) => {
   const response = await apiClient.delete(`/users/${userId}/addresses/${addressId}`);
   return response.data;
 };
+
+export const updateUserProfile = async (userId, profileData) => {
+  const response = await apiClient.put(`/users/${userId}/profile`, profileData);
+  return response.data;
+};

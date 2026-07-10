@@ -14,8 +14,14 @@ export const isValidEmail = (email) => {
  * @returns {boolean} True if valid, false otherwise.
  */
 export const isValidPassword = (password) => {
-  const re = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+  const re = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
   return re.test(password);
+};
+
+
+
+export const isValidName = (name) => {
+  return name.trim().length >= 2 && /^[a-zA-Z\s]*$/.test(name);
 };
 
 /**

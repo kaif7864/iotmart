@@ -12,6 +12,7 @@ import { getProductById, getProducts, addProductReview } from '../../services/ap
 import { useAuth } from '../../context/AuthContext';
 import { useComparison } from '../../context/ComparisonContext';
 import { useCart } from '../../hooks/useCart';
+import { Skeleton, SkeletonText } from '../../components/common';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -97,9 +98,20 @@ const ProductDetail = () => {
 
   if (loading) {
     return (
-      <div className="pt-48 pb-24 min-h-screen flex flex-col items-center justify-center space-y-6">
-        <Loader2 className="h-10 w-10 text-accent animate-spin" />
-        <p className="text-text-muted font-black tracking-widest uppercase text-xs">Calibrating Data...</p>
+      <div className="pt-32 pb-32 min-h-screen bg-app-bg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="card rounded-sm overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
+            <Skeleton className="w-full lg:w-1/2 min-h-[400px] lg:min-h-full rounded-none" />
+            <div className="w-full lg:w-1/2 p-8 lg:p-12">
+              <SkeletonText lines={1} className="w-24 mb-4" />
+              <SkeletonText lines={1} className="w-3/4 h-10 mb-6" />
+              <SkeletonText lines={3} className="w-full mb-10" />
+              <SkeletonText lines={1} className="w-1/3 h-12 mb-8" />
+              <SkeletonText lines={2} className="w-full mb-6" />
+              <Skeleton className="w-full h-14" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -114,21 +126,21 @@ const ProductDetail = () => {
   }
 
   return (
-    <div className="pt-32 pb-32 min-h-screen bg-slate-50">
+    <div className="pt-32 pb-32 min-h-screen bg-app-bg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link to="/shop" className="inline-flex items-center gap-2 text-text-secondary hover:text-accent transition-all mb-8 group text-[10px] font-black uppercase tracking-widest">
           <ArrowLeft className="h-4 w-4" /> Back to Shop
         </Link>
         
-        <div className="bg-white rounded-sm overflow-hidden border border-border-main shadow-sm relative">
+        <div className="card rounded-sm overflow-hidden relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
             
             {/* Image Section with Video/Sim Overlays */}
-            <div className="bg-slate-50 flex items-center justify-center p-8 md:p-12 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-border-main">
+            <div className="bg-surface-hover flex items-center justify-center p-8 md:p-12 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-border-main">
               <div className="absolute top-8 left-8 z-20 flex flex-col gap-3">
                 <button 
                   onClick={() => setShowVideo(true)}
-                  className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all text-accent group"
+                  className="w-12 h-12 bg-card-bg rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all text-accent group"
                 >
                   <Play className="h-5 w-5 fill-current" />
                   <span className="absolute left-14 bg-text-primary text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Watch Demo</span>
@@ -159,13 +171,13 @@ const ProductDetail = () => {
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-white relative"
+              className="p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-card-bg relative"
             >
               <div className="flex items-center gap-4 mb-6">
                 <div className="text-[10px] font-black text-accent uppercase tracking-widest px-3 py-1 bg-accent/5 rounded-sm border border-accent/10">{product.category}</div>
                 {product.inStock && (
-                  <div className="flex items-center gap-1.5 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
-                    <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-pulse"></div>
+                  <div className="flex items-center gap-1.5 text-status-success text-[10px] font-black uppercase tracking-widest">
+                    <div className="w-1.5 h-1.5 bg-status-success rounded-full animate-pulse" />
                     Ready to Ship
                   </div>
                 )}
@@ -177,10 +189,10 @@ const ProductDetail = () => {
                 <div className="text-5xl font-black text-text-primary tracking-tighter">
                   {formatPrice(product.price)}
                 </div>
-                <div className="h-10 w-[1px] bg-slate-100"></div>
+                <div className="h-10 w-[1px] bg-border-subtle" />
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-3 w-3 fill-yellow-400 text-yellow-400" />)}
+                    {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-3 w-3 fill-status-star text-status-star" />)}
                   </div>
                   <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">{product.reviews_count} Reviews</span>
                 </div>
@@ -198,8 +210,8 @@ const ProductDetail = () => {
                   { icon: Wifi, label: 'Network', val: 'Wi-Fi/BT' },
                   { icon: Shield, label: 'Protocol', val: 'Secure MQTT' },
                 ].map((cap, i) => (
-                  <div key={i} className="flex items-center gap-3 p-4 bg-slate-50 rounded-sm border border-slate-100">
-                    <div className="w-10 h-10 bg-white rounded-sm flex items-center justify-center text-accent shadow-sm">
+                  <div key={i} className="flex items-center gap-3 p-4 bg-surface rounded-sm border border-border-subtle">
+                    <div className="w-10 h-10 card rounded-sm flex items-center justify-center text-accent shadow-sm">
                       <cap.icon className="h-5 w-5" />
                     </div>
                     <div>
@@ -211,7 +223,7 @@ const ProductDetail = () => {
               </div>
 
               {/* Bulk Pricing */}
-              <div className="mb-12 p-6 bg-slate-50 rounded-sm border border-border-main">
+              <div className="mb-12 p-6 bg-surface rounded-sm border border-border-main">
                 <div className="flex items-center gap-2 mb-4">
                   <Package className="h-4 w-4 text-accent" />
                   <h4 className="text-[10px] font-black text-text-primary uppercase tracking-[0.2em]">Bulk Discount Tiers</h4>
@@ -221,13 +233,13 @@ const ProductDetail = () => {
                     <p className="text-[8px] text-text-muted font-bold uppercase mb-1">Standard</p>
                     <p className="text-sm font-black text-text-primary">{formatPrice(product.price)}</p>
                   </div>
-                  <div className="text-center border-x border-slate-200">
+                  <div className="text-center border-x border-border-subtle">
                     <p className="text-[8px] text-accent font-bold uppercase mb-1">10+ Units</p>
                     <p className="text-sm font-black text-accent">{formatPrice(product.price * 0.9)}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-[8px] text-emerald-600 font-bold uppercase mb-1">50+ Units</p>
-                    <p className="text-sm font-black text-emerald-600">{formatPrice(product.price * 0.8)}</p>
+                    <p className="text-[8px] text-status-success font-bold uppercase mb-1">50+ Units</p>
+                    <p className="text-sm font-black text-status-success">{formatPrice(product.price * 0.8)}</p>
                   </div>
                 </div>
               </div>
@@ -241,12 +253,12 @@ const ProductDetail = () => {
                   <ShoppingCart className="h-5 w-5" />
                   {product.inStock ? 'Deploy to Cart' : 'Stock Exhausted'}
                 </button>
-                <button 
+                <button
                   onClick={() => addToCompare(product)}
                   className={`px-8 py-5 border-2 rounded-sm transition-all flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest ${
-                    isInCompare 
-                      ? 'border-accent bg-accent text-white shadow-lg shadow-accent/20' 
-                      : 'border-slate-200 text-text-secondary hover:border-accent hover:text-accent'
+                    isInCompare
+                      ? 'border-accent bg-accent text-text-inverse shadow-lg shadow-accent/20'
+                      : 'border-border-subtle text-text-secondary hover:border-accent hover:text-accent'
                   }`}
                 >
                   <Scale className="h-5 w-5" />
@@ -261,14 +273,14 @@ const ProductDetail = () => {
         {/* Live Simulation Overlay */}
         <AnimatePresence>
           {showSim && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-surface-dark/80 backdrop-blur-md"
             >
-              <div className="bg-white w-full max-w-2xl rounded-sm overflow-hidden shadow-2xl relative">
-                <button onClick={() => setShowSim(false)} className="absolute top-6 right-6 p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-all">
+              <div className="card w-full max-w-2xl rounded-sm overflow-hidden shadow-2xl relative">
+                <button onClick={() => setShowSim(false)} className="absolute top-6 right-6 p-2 card hover:bg-surface-hover rounded-full transition-all">
                   <X className="h-5 w-5" />
                 </button>
                 <div className="p-12 text-center">
@@ -280,25 +292,25 @@ const ProductDetail = () => {
                   
                   <div className="flex items-center justify-center gap-16 mb-12">
                     <div className="text-center">
-                      <div className="w-32 h-32 rounded-full border-8 border-slate-100 border-t-accent flex items-center justify-center animate-slow-spin mb-4">
+                      <div className="w-32 h-32 rounded-full border-8 border-border-subtle border-t-accent flex items-center justify-center animate-slow-spin mb-4">
                         <Thermometer className="h-10 w-10 text-accent animate-none" />
                       </div>
                       <p className="text-4xl font-black text-text-primary tracking-tighter">{simValue}°C</p>
-                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">Temperature</p>
+                      <p className="label-caps mt-1">Temperature</p>
                     </div>
                     <div className="text-center">
-                      <div className="w-32 h-32 rounded-full border-8 border-slate-100 border-t-blue-500 flex items-center justify-center mb-4">
-                        <Droplets className="h-10 w-10 text-blue-500" />
+                      <div className="w-32 h-32 rounded-full border-8 border-border-subtle border-t-accent flex items-center justify-center mb-4">
+                        <Droplets className="h-10 w-10 text-accent" />
                       </div>
                       <p className="text-4xl font-black text-text-primary tracking-tighter">{(simValue * 1.5).toFixed(1)}%</p>
-                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">Humidity</p>
+                      <p className="label-caps mt-1">Humidity</p>
                     </div>
                   </div>
 
-                  <div className="p-6 bg-slate-50 rounded-sm border border-slate-100 text-left">
+                  <div className="p-6 bg-surface rounded-sm border border-border-subtle text-left">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                      <span className="text-[10px] font-black uppercase tracking-widest">Real-time Telemetry Active</span>
+                      <div className="w-2 h-2 bg-status-success rounded-full animate-pulse" />
+                      <span className="label-caps">Real-time Telemetry Active</span>
                     </div>
                     <p className="text-xs text-text-secondary leading-relaxed">
                       This module supports high-frequency sampling (up to 10Hz). The simulation above represents the logic integrated into the board's firmware for environmental monitoring.
@@ -313,16 +325,16 @@ const ProductDetail = () => {
         {/* Video Overlay */}
         <AnimatePresence>
           {showVideo && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl"
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-surface-dark/90 backdrop-blur-xl"
             >
               <button onClick={() => setShowVideo(false)} className="absolute top-10 right-10 text-white hover:text-accent transition-all">
                 <X className="h-10 w-10" />
               </button>
-              <div className="w-full max-w-5xl aspect-video bg-black rounded-sm overflow-hidden shadow-2xl border border-white/10">
+              <div className="w-full max-w-5xl aspect-video bg-black rounded-sm overflow-hidden shadow-2xl border border-card-bg/10">
                 {/* Simulated Video Placeholder */}
                 <div className="w-full h-full flex flex-col items-center justify-center text-white relative">
                   <div className="absolute inset-0">
@@ -344,12 +356,12 @@ const ProductDetail = () => {
               <Info className="h-6 w-6 text-accent" />
               <h2 className="text-3xl font-black text-text-primary tracking-tighter uppercase">Technical Specs</h2>
             </div>
-            <div className="bg-white rounded-sm border border-border-main overflow-hidden shadow-sm">
+            <div className="bg-card-bg rounded-sm border border-border-main overflow-hidden shadow-sm">
               <table className="w-full text-left border-collapse">
                 <tbody>
                   {product.specs.map((spec, index) => (
-                    <tr key={index} className={index !== product.specs.length - 1 ? "border-b border-slate-50" : ""}>
-                      <td className="py-5 px-8 text-text-muted text-[10px] font-black uppercase tracking-widest bg-slate-50/50 w-1/3">Data Point {index + 1}</td>
+                    <tr key={index} className={index !== product.specs.length - 1 ? "border-b border-border-subtle" : ""}>
+                      <td className="py-5 px-8 text-text-muted text-[10px] font-black uppercase tracking-widest bg-surface-hover w-1/3">Data Point {index + 1}</td>
                       <td className="py-5 px-8 text-text-primary font-bold text-sm tracking-tight">{spec}</td>
                     </tr>
                   ))}
@@ -368,9 +380,9 @@ const ProductDetail = () => {
                 { title: 'Datasheet PDF', sub: 'Technical Documentation', icon: ExternalLink },
                 { title: 'GitHub Repo', sub: 'Driver & Sample Code', icon: ExternalLink },
               ].map((link, i) => (
-                <div key={i} className="p-6 bg-white rounded-sm border border-border-main hover:border-accent transition-all cursor-pointer group">
+                <div key={i} className="p-6 card rounded-sm hover:border-accent transition-all cursor-pointer group">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="p-2 bg-slate-50 rounded-sm group-hover:bg-accent group-hover:text-white transition-all">
+                    <div className="p-2 bg-surface rounded-sm group-hover:bg-accent group-hover:text-text-inverse transition-all">
                       <link.icon className="h-5 w-5" />
                     </div>
                   </div>
@@ -389,7 +401,7 @@ const ProductDetail = () => {
               <h2 className="text-3xl font-black text-text-primary tracking-tighter uppercase">Customer <span className="text-accent">Audit</span></h2>
               <div className="flex items-center gap-3 mt-3">
                 <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-4 w-4 fill-yellow-400 text-yellow-400" />)}
+                  {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-4 w-4 fill-status-star text-status-star" />)}
                 </div>
                 <span className="text-sm font-black text-text-primary">{product.rating} Verified Average</span>
               </div>
@@ -408,13 +420,13 @@ const ProductDetail = () => {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="mb-16 bg-white border border-border-main rounded-sm p-10 shadow-sm"
+                className="mb-16 bg-card-bg border border-border-main rounded-sm p-10 shadow-sm"
               >
                 <h4 className="text-lg font-black text-text-primary mb-8 uppercase tracking-tight">Technical Rating</h4>
                 <div className="flex gap-4 mb-10">
                   {[1, 2, 3, 4, 5].map(s => (
                     <button key={s} onClick={() => setUserRating(s)} className="transition-transform hover:scale-125">
-                      <Star className={`h-10 w-10 ${s <= userRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-100'}`} />
+                      <Star className={`h-10 w-10 ${s <= userRating ? 'fill-status-star text-status-star' : 'text-border-subtle'}`} />
                     </button>
                   ))}
                 </div>
@@ -427,12 +439,12 @@ const ProductDetail = () => {
                       value={reviewText}
                       onChange={(e) => setReviewText(e.target.value)}
                       placeholder="Discuss pin stability, power consumption, or general quality..."
-                      className="w-full px-5 py-4 bg-slate-50 border border-border-main rounded-sm text-sm outline-none focus:border-accent transition-all"
+                      className="field-input"
                     />
                   </div>
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Hardware Photos</label>
-                    <div className="border-2 border-dashed border-border-main rounded-sm h-40 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer group">
+                    <div className="border-2 border-dashed border-border-main rounded-sm h-40 flex flex-col items-center justify-center bg-surface hover:bg-surface-hover transition-all cursor-pointer group">
                       <Camera className="h-8 w-8 text-text-muted group-hover:text-accent mb-3" />
                       <span className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Drop Images Here</span>
                     </div>
@@ -458,7 +470,7 @@ const ProductDetail = () => {
                   initial={{ opacity: 0, x: -20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   key={i} 
-                  className="bg-white border border-border-main rounded-sm p-10 shadow-sm hover:shadow-md transition-all"
+                  className="bg-card-bg border border-border-main rounded-sm p-10 shadow-sm hover:shadow-md transition-all"
                 >
                   <div className="flex justify-between items-start mb-8">
                     <div className="flex items-center gap-5">
@@ -472,15 +484,15 @@ const ProductDetail = () => {
                     </div>
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map(s => (
-                        <Star key={s} className={`h-3 w-3 ${s <= rev.rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-100'}`} />
+                        <Star key={s} className={`h-3 w-3 ${s <= rev.rating ? 'fill-status-star text-status-star' : 'text-border-subtle'}`} />
                       ))}
                     </div>
                   </div>
                   <p className="text-text-secondary text-base leading-relaxed mb-8 font-medium italic">"{rev.comment}"</p>
                   <div className="flex gap-3">
                     {[1, 2].map(idx => (
-                      <div key={idx} className="w-20 h-20 rounded-sm bg-slate-50 border border-border-main flex items-center justify-center">
-                        <ImageIcon className="h-5 w-5 text-slate-200" />
+                      <div key={idx} className="w-20 h-20 rounded-sm bg-surface border border-border-main flex items-center justify-center">
+                        <ImageIcon className="h-5 w-5 text-text-muted/30" />
                       </div>
                     ))}
                   </div>
@@ -489,20 +501,20 @@ const ProductDetail = () => {
             </div>
             
             <div className="space-y-8">
-              <div className="bg-white border border-border-main rounded-sm p-10 sticky top-32">
+              <div className="bg-card-bg border border-border-main rounded-sm p-10 sticky top-32">
                 <h4 className="text-lg font-black text-text-primary mb-8 uppercase tracking-tight">Audit Distribution</h4>
                 {[5, 4, 3, 2, 1].map(s => (
                   <div key={s} className="flex items-center gap-4 mb-6">
                     <span className="text-xs font-black text-text-primary w-4">{s}</span>
-                    <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                    <div className="flex-grow h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                      <div className="h-full bg-yellow-400 rounded-full" style={{ width: s === 5 ? '85%' : s === 4 ? '10%' : '2%' }}></div>
+                    <Star className="h-3.5 w-3.5 fill-status-star text-status-star" />
+                    <div className="flex-grow h-2 bg-surface rounded-full overflow-hidden border border-border-subtle">
+                      <div className="h-full bg-yellow-400 rounded-full" style={{ width: s === 5 ? '85%' : s === 4 ? '10%' : '2%' }} />
                     </div>
                     <span className="text-[10px] font-black text-text-muted w-10 text-right">{s === 5 ? '85%' : s === 4 ? '10%' : '2%'}</span>
                   </div>
                 ))}
-                <div className="mt-10 p-6 bg-slate-50 rounded-sm border border-slate-100">
-                  <p className="text-[10px] font-black text-text-primary uppercase tracking-widest mb-2">Editor's Note</p>
+                <div className="mt-10 p-6 bg-surface rounded-sm border border-border-subtle">
+                  <p className="label-caps mb-2">Editor's Note</p>
                   <p className="text-[10px] text-text-secondary leading-relaxed font-medium">98% of users reported seamless integration with ESP-IDF and Arduino IDE.</p>
                 </div>
               </div>

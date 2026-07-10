@@ -11,6 +11,7 @@ import NexarSearch from './NexarSearch';
 import LabSettingsModal from './LabSettingsModal';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import apiClient from '../../services/api.client';
 
 let instanceCounter = 0;
 
@@ -40,18 +41,14 @@ const IoTLabCanvas = ({ onAddToCart }) => {
   const saveCircuit = async () => {
     if (!user) return toast.error("Please login to save your design");
     try {
-      const resp = await fetch('http://localhost:8000/api/circuits/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: circuitName,
-          userId: user._id,
-          components,
-          wires,
-          code: '', // Can be extended to save code too
-        }),
+      await apiClient.post('/circuits/', {
+        name: circuitName,
+        userId: user._id,
+        components,
+        wires,
+        code: '', // Can be extended to save code too
       });
-      if (resp.ok) toast.success("Circuit saved!");
+      toast.success("Circuit saved!");
     } catch (e) {
       toast.error("Failed to save circuit");
     }
@@ -60,9 +57,8 @@ const IoTLabCanvas = ({ onAddToCart }) => {
   const loadUserDesigns = async () => {
     if (!user) return;
     try {
-      const resp = await fetch(`http://localhost:8000/api/circuits/${user._id}`);
-      const data = await resp.json();
-      setUserDesigns(data);
+      const resp = await apiClient.get(`/circuits/${user._id}`);
+      setUserDesigns(resp.data);
       setShowLoadModal(true);
     } catch (e) {
       toast.error("Failed to fetch designs");

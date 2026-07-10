@@ -19,9 +19,9 @@ const ProductCard = ({ product }) => {
 
   return (
     <motion.div 
-      className="bg-white rounded-sm overflow-hidden group flex flex-col h-full border border-slate-200 hover:shadow-lg transition-all duration-300 relative"
+      className="bg-card-bg rounded-sm overflow-hidden group flex flex-col h-full border border-border-main hover:shadow-lg transition-all duration-300 relative"
     >
-      <Link to={`/product/${product._id}`} className="relative block aspect-square overflow-hidden bg-slate-50">
+      <Link to={`/product/${product._id}`} className="relative block aspect-square overflow-hidden bg-app-bg">
         <img 
           src={product.image} 
           alt={product.name} 
@@ -29,7 +29,7 @@ const ProductCard = ({ product }) => {
         />
         <div className="absolute top-2 left-2 z-20">
           {!product.inStock && (
-            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest">
+            <span className="bg-status-danger text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest">
               Sold Out
             </span>
           )}
@@ -43,7 +43,7 @@ const ProductCard = ({ product }) => {
             toggleWishlist(product);
           }}
           className={`p-2 rounded-full border shadow-sm transition-all ${
-            isInWishlist ? 'bg-red-50 border-red-100 text-red-500' : 'bg-white border-slate-100 text-slate-400 hover:text-red-400'
+            isInWishlist ? 'bg-red-50 border-red-100 text-status-danger' : 'bg-card-bg border-border-subtle text-text-muted hover:text-red-400'
           }`}
         >
           <Heart className={`h-4 w-4 ${isInWishlist ? 'fill-current' : ''}`} />
@@ -54,7 +54,7 @@ const ProductCard = ({ product }) => {
             addToCompare(product);
           }}
           className={`p-2 rounded-full border shadow-sm transition-all ${
-            isInCompare ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-white border-slate-100 text-slate-400 hover:text-accent'
+            isInCompare ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-card-bg border-border-subtle text-text-muted hover:text-accent'
           }`}
           title="Compare Product"
         >
@@ -70,7 +70,7 @@ const ProductCard = ({ product }) => {
         
         <div className="flex items-center gap-1 mb-4">
           {[1, 2, 3, 4, 5].map((s) => (
-            <Star key={s} className={`h-3 w-3 ${s <= Math.round(product.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-slate-200'}`} />
+            <Star key={s} className={`h-3 w-3 ${s <= Math.round(product.rating) ? 'fill-status-star text-status-star' : 'text-lab-text'}`} />
           ))}
           <span className="text-[10px] font-medium text-text-muted ml-1">({product.reviews_count || 0})</span>
         </div>
@@ -80,14 +80,14 @@ const ProductCard = ({ product }) => {
             <span className="text-xl font-bold text-text-primary tracking-tight">{formatPrice(product.price)}</span>
           </div>
           {quantityInCart > 0 ? (
-            <div className="flex items-center bg-slate-100 rounded-md p-1 border border-slate-200">
+            <div className="flex items-center bg-surface-hover rounded-md p-1 border border-border-main">
               <button 
                 onClick={(e) => {
                   e.preventDefault();
                   if (quantityInCart === 1) onRemoveFromCart(product._id);
                   else onUpdateQuantity(product._id, quantityInCart - 1);
                 }}
-                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent hover:bg-white rounded transition-colors text-sm font-black"
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent hover:bg-card-bg rounded transition-colors text-sm font-black"
               >
                 -
               </button>
@@ -99,7 +99,7 @@ const ProductCard = ({ product }) => {
                   e.preventDefault();
                   onUpdateQuantity(product._id, quantityInCart + 1);
                 }}
-                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent hover:bg-white rounded transition-colors text-sm font-black"
+                className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent hover:bg-card-bg rounded transition-colors text-sm font-black"
               >
                 +
               </button>

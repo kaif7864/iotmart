@@ -22,7 +22,7 @@ async def signup(user: UserCreate):
     # Trigger Welcome Email
     try:
         from services.notification_engine import notify
-        notify.send_welcome_email(user.name, user.email)
+        notify.send_welcome_email(user.first_name, user.email)
     except Exception as e:
         print(f"Failed to send welcome email: {e}")
         
@@ -44,7 +44,9 @@ async def login(email: str = Body(...), password: str = Body(...)):
         "token_type": "bearer",
         "user": {
             "_id": str(user["_id"]),
-            "name": user["name"],
+            "first_name": user.get("first_name", user.get("name", "").split(" ")[0] if user.get("name") else ""),
+            "last_name": user.get("last_name", user.get("name", "").split(" ")[-1] if user.get("name") and " " in user.get("name") else ""),
+            "phone": user.get("phone", ""),
             "email": user["email"],
             "role": user.get("role", "user"),
             "wishlist": user.get("wishlist", []),

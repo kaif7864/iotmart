@@ -74,7 +74,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="fixed top-0 w-full z-[100] bg-white/80 backdrop-blur-xl border-b border-border-main shadow-sm">
+    <nav className="fixed top-0 w-full z-[100] bg-card-bg/80 backdrop-blur-xl border-b border-border-main shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           
@@ -97,7 +97,7 @@ const Navbar = () => {
               <input 
                 type="text" 
                 placeholder="Search high-performance components..." 
-                className="w-full pl-14 pr-24 py-3.5 bg-slate-50 border border-border-main rounded-sm text-sm font-bold text-text-primary focus:outline-none focus:border-accent focus:bg-white focus:ring-4 focus:ring-accent/5 transition-all shadow-inner"
+                className="w-full pl-14 pr-24 py-3.5 bg-app-bg border border-border-main rounded-sm text-sm font-bold text-text-primary focus:outline-none focus:border-accent focus:bg-card-bg focus:ring-4 focus:ring-accent/5 transition-all shadow-inner"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
@@ -105,7 +105,7 @@ const Navbar = () => {
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <button 
                   onClick={startVoiceSearch}
-                  className={`p-2 rounded-sm transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-text-muted hover:text-accent border border-slate-100 shadow-sm'}`}
+                  className={`p-2 rounded-sm transition-all ${isListening ? 'bg-status-danger text-white animate-pulse' : 'bg-card-bg text-text-muted hover:text-accent border border-border-subtle shadow-sm'}`}
                 >
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </button>
@@ -119,9 +119,9 @@ const Navbar = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full left-0 w-full mt-3 bg-white border border-border-main rounded-[24px] shadow-2xl shadow-slate-200/50 overflow-hidden z-[110]"
+                  className="absolute top-full left-0 w-full mt-3 bg-card-bg border border-border-main rounded-[24px] shadow-2xl shadow-slate-200/50 overflow-hidden z-[110]"
                 >
-                  <div className="p-3 border-b border-slate-50 bg-slate-50/50">
+                  <div className="p-3 border-b border-border-subtle bg-app-bg/50">
                     <p className="text-[9px] font-black text-text-muted uppercase tracking-[0.2em] px-3">Instant Results</p>
                   </div>
                   <div className="max-h-[400px] overflow-y-auto">
@@ -133,16 +133,16 @@ const Navbar = () => {
                           setSearchQuery('');
                           setSuggestions([]);
                         }}
-                        className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 transition-all border-b border-slate-50 last:border-none group text-left"
+                        className="w-full flex items-center gap-4 p-4 hover:bg-app-bg transition-all border-b border-border-subtle last:border-none group text-left"
                       >
-                        <div className="w-12 h-12 bg-slate-100 rounded-sm overflow-hidden p-2 flex-shrink-0">
+                        <div className="w-12 h-12 bg-surface-hover rounded-sm overflow-hidden p-2 flex-shrink-0">
                           <img src={p.image} alt={p.name} className="w-full h-full object-contain" />
                         </div>
                         <div className="flex-grow">
                           <p className="text-xs font-black text-text-primary group-hover:text-accent transition-colors line-clamp-1 uppercase tracking-tight">{p.name}</p>
                           <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest mt-1">{p.category}</p>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-slate-200 group-hover:text-accent group-hover:translate-x-1 transition-all" />
+                        <ArrowRight className="h-4 w-4 text-lab-text group-hover:text-accent group-hover:translate-x-1 transition-all" />
                       </button>
                     ))}
                   </div>
@@ -167,17 +167,17 @@ const Navbar = () => {
               </select>
             </div> */}
 
-            <div className="h-6 w-[1px] bg-slate-200 mx-1 hidden sm:block"></div>
+            <div className="h-6 w-[1px] bg-surface-hover mx-1 hidden sm:block"></div>
 
             {/* Notifications */}
             <div className="relative">
               <button 
                 onClick={() => { setIsNotifOpen(!isNotifOpen); markAllRead(); }}
-                className="p-3 bg-slate-50 rounded-full border border-border-main hover:bg-white hover:border-accent transition-all shadow-sm relative group"
+                className="p-3 bg-app-bg rounded-full border border-border-main hover:bg-card-bg hover:border-accent transition-all shadow-sm relative group"
               >
                 <Bell className={`h-5 w-5 ${notifications.some(n => !n.read) ? 'text-accent' : 'text-text-secondary'} group-hover:text-accent transition-colors`} />
                 {notifications.some(n => !n.read) && (
-                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-accent rounded-full border-2 border-white animate-pulse"></span>
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-accent rounded-full border-2 border-card-bg animate-pulse"></span>
                 )}
               </button>
               
@@ -187,16 +187,16 @@ const Navbar = () => {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-3 w-80 bg-white border border-border-main rounded-[24px] shadow-2xl overflow-hidden z-[110]"
+                    className="absolute right-0 mt-3 w-80 bg-card-bg border border-border-main rounded-[24px] shadow-2xl overflow-hidden z-[110]"
                   >
-                    <div className="p-5 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                    <div className="p-5 border-b border-border-subtle bg-app-bg/50 flex justify-between items-center">
                       <p className="text-[10px] font-black text-text-primary uppercase tracking-[0.2em]">Notifications</p>
                       <button onClick={() => setIsNotifOpen(false)} className="text-text-muted hover:text-accent"><X className="h-4 w-4" /></button>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
                       {notifications.length > 0 ? notifications.map((n) => (
-                        <div key={n.id} className="p-5 border-b border-slate-50 hover:bg-slate-50 transition-all flex gap-4">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${n.type === 'warning' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                        <div key={n.id} className="p-5 border-b border-border-subtle hover:bg-app-bg transition-all flex gap-4">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${n.type === 'warning' ? 'bg-status-warning-bg text-status-warning-text' : 'bg-status-info-bg text-accent'}`}>
                             {n.type === 'warning' ? <AlertTriangle className="h-5 w-5" /> : <Info className="h-5 w-5" />}
                           </div>
                           <div>
@@ -215,10 +215,10 @@ const Navbar = () => {
             </div>
 
             {/* Cart Icon */}
-            <Link to="/cart" className="relative group p-3 bg-slate-50 rounded-full border border-border-main hover:bg-white hover:border-accent transition-all shadow-sm">
+            <Link to="/cart" className="relative group p-3 bg-app-bg rounded-full border border-border-main hover:bg-card-bg hover:border-accent transition-all shadow-sm">
               <ShoppingCart className="h-5 w-5 text-text-secondary group-hover:text-accent transition-colors" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-[10px] font-black text-white bg-accent rounded-full border-2 border-white shadow-lg">
+                <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-[10px] font-black text-white bg-accent rounded-full border-2 border-card-bg shadow-lg">
                   {cartCount}
                 </span>
               )}
@@ -227,19 +227,19 @@ const Navbar = () => {
             {/* User Profile / Login */}
             {user ? (
               <div className="flex items-center gap-3">
-                {/* <Link to="/devices" className="hidden sm:flex items-center gap-2 p-3 bg-slate-50 rounded-sm text-text-primary hover:text-accent transition-all border border-border-main shadow-sm">
+                {/* <Link to="/devices" className="hidden sm:flex items-center gap-2 p-3 bg-app-bg rounded-sm text-text-primary hover:text-accent transition-all border border-border-main shadow-sm">
                   <Cpu className="h-4 w-4" />
                   <span className="text-[9px] font-black uppercase tracking-widest">My Devices</span>
                 </Link> */}
                 {isAdmin && (
-                  <Link to="/admin/dashboard" className="hidden xl:flex items-center gap-2 p-3 bg-slate-900 rounded-sm text-white hover:bg-slate-800 transition-all shadow-lg">
+                  <Link to="/admin/dashboard" className="hidden xl:flex items-center gap-2 p-3 bg-surface-dark rounded-sm text-white hover:bg-surface-dark transition-all shadow-lg">
                     <ShieldCheck className="h-4 w-4" />
                     <span className="text-[9px] font-black uppercase tracking-widest">Control Panel</span>
                   </Link>
                 )}
                 <Link to="/profile" className="flex items-center gap-3 group">
-                  <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white font-black text-sm shadow-lg shadow-accent/20 group-hover:scale-105 transition-all border-2 border-white">
-                    {user.name.charAt(0)}
+                  <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white font-black text-sm shadow-lg shadow-accent/20 group-hover:scale-105 transition-all border-2 border-card-bg">
+                    {user.first_name ? user.first_name.charAt(0) : 'U'}
                   </div>
                 </Link>
               </div>
@@ -252,7 +252,7 @@ const Navbar = () => {
             {/* Mobile Menu Toggle */}
             <button 
               onClick={() => setIsMobileMenuOpen(true)}
-              className="p-3 bg-slate-50 rounded-sm lg:hidden text-text-primary hover:bg-white transition-all border border-border-main"
+              className="p-3 bg-app-bg rounded-sm lg:hidden text-text-primary hover:bg-card-bg transition-all border border-border-main"
             >
               <Menu className="h-6 w-6" />
             </button>
@@ -267,14 +267,14 @@ const Navbar = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[200] lg:hidden p-6"
+            className="fixed inset-0 bg-surface-dark/90 backdrop-blur-xl z-[200] lg:hidden p-6"
           >
             <div className="flex justify-between items-center mb-8">
               <div className="flex items-center gap-3">
                 <CircuitBoard className="h-8 w-8 text-accent" />
                 <span className="font-black text-xl text-white uppercase">IoTMart</span>
               </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-3 bg-white/10 rounded-sm text-white">
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-3 bg-card-bg/10 rounded-sm text-white">
                 <X className="h-6 w-6" />
               </button>
             </div>
@@ -283,7 +283,7 @@ const Navbar = () => {
               <input 
                 type="text" 
                 placeholder="Search..." 
-                className="w-full pl-5 pr-12 py-4 bg-white/5 border border-white/10 rounded-[24px] text-sm font-bold text-white focus:outline-none focus:border-accent transition-all"
+                className="w-full pl-5 pr-12 py-4 bg-card-bg/5 border border-card-bg/10 rounded-[24px] text-sm font-bold text-white focus:outline-none focus:border-accent transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -316,7 +316,7 @@ const Navbar = () => {
                   key={item.name} 
                   to={item.path} 
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-between p-6 bg-white/5 rounded-[24px] border border-white/10 text-white group hover:bg-accent transition-all"
+                  className="flex items-center justify-between p-6 bg-card-bg/5 rounded-[24px] border border-card-bg/10 text-white group hover:bg-accent transition-all"
                 >
                   <span className="text-sm font-black uppercase tracking-widest">{item.name}</span>
                   <item.icon className="h-5 w-5 text-accent group-hover:text-white" />

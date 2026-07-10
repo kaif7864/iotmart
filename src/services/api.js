@@ -2,7 +2,7 @@ import apiClient from './api.client';
 import { loginUser, signupUser } from './auth.service';
 import { getProducts, addProductReview, getProductById, createProduct, updateProduct, deleteProduct } from './product.service';
 import { placeOrder, getOrdersByUser, getUserOrders, getAllOrders, updateOrderStatus, updateOrderTracking, getLiveTracking } from './order.service';
-import { getUsers, updateUserRole, updateUserStatus, toggleWishlist, addAddress, removeAddress } from './user.service';
+import { getUsers, updateUserRole, updateUserStatus, toggleWishlist, addAddress, removeAddress, updateUserProfile } from './user.service';
 import { getDashboardStats } from './analytics.service';
 import { getAIChatReply } from './ai.service';
 
@@ -29,6 +29,7 @@ export {
   toggleWishlist,
   addAddress,
   removeAddress,
+  updateUserProfile,
   getDashboardStats,
   getAIChatReply
 };

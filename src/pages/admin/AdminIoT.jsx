@@ -84,8 +84,8 @@ const AdminIoT = () => {
                     <td className="py-6 px-4 font-mono text-[10px] text-accent font-black">{dev.version}</td>
                     <td className="py-6 px-4 text-[10px] font-black text-text-muted uppercase tracking-widest">{dev.uptime}</td>
                     <td className="py-6 px-4">
-                      <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-widest ${dev.status === 'Healthy' ? 'text-emerald-600' : 'text-amber-500'}`}>
-                        <div className={`w-2 h-2 rounded-full animate-pulse ${dev.status === 'Healthy' ? 'bg-status-success' : 'bg-amber-500'}`}></div>
+                      <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-widest ${dev.status === 'Healthy' ? 'text-status-success' : 'text-status-warning'}`}>
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${dev.status === 'Healthy' ? 'bg-status-success' : 'bg-status-warning'}`}></div>
                         {dev.status}
                       </div>
                     </td>
@@ -100,7 +100,7 @@ const AdminIoT = () => {
         <div className="bg-surface-dark rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden flex flex-col">
           <div className="absolute top-0 right-0 w-32 h-32 bg-accent/30 blur-[60px] rounded-full"></div>
           <h3 className="text-lg font-black uppercase tracking-tight mb-8 flex items-center gap-3 relative z-10">
-            <Terminal className="h-5 w-5 text-emerald-400" /> Deployment Console
+            <Terminal className="h-5 w-5 text-status-success" /> Deployment Console
           </h3>
           <div className="flex-grow font-mono text-[10px] space-y-3 h-[400px] overflow-hidden relative z-10">
             <AnimatePresence mode="popLayout">
@@ -109,7 +109,7 @@ const AdminIoT = () => {
                   key={i}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className={`${log.includes('DONE') ? 'text-emerald-400 font-black' : 'text-emerald-400/80'} leading-relaxed`}
+                  className={`${log.includes('DONE') ? 'text-status-success font-black' : 'text-status-success/80'} leading-relaxed`}
                 >
                   <span className="text-white/20 mr-2">{'>'}</span> {log}
                 </motion.div>

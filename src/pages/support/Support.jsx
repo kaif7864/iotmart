@@ -30,7 +30,7 @@ const Support = () => {
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-md w-full bg-card-bg p-12 rounded-[40px] text-center shadow-2xl border border-border-main"
         >
-          <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-sm flex items-center justify-center mx-auto mb-8">
+          <div className="w-20 h-20 bg-status-success/10 text-status-success rounded-sm flex items-center justify-center mx-auto mb-8">
             <CheckCircle className="h-10 w-10" />
           </div>
           <h2 className="text-3xl font-black text-text-primary uppercase tracking-tighter mb-4">Ticket Generated</h2>

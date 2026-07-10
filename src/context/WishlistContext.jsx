@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { toggleWishlist as apiToggleWishlist } from '../services/api';
+import { toggleWishlist as apiToggleWishlist, getProducts } from '../services/api';
 import { useAuth } from './AuthContext';
 
 export const WishlistContext = createContext();
@@ -13,7 +13,7 @@ export const WishlistProvider = ({ children }) => {
     const hydrateInitialWishlist = async () => {
       if (user && user.wishlist && user.wishlist.length > 0) {
         try {
-          const allProducts = await (await fetch('http://localhost:8000/api/products')).json();
+          const allProducts = await getProducts();
           const hydrated = allProducts.filter(p => user.wishlist.includes(p._id));
           setWishlist(hydrated);
         } catch (error) {
@@ -39,7 +39,7 @@ export const WishlistProvider = ({ children }) => {
       localStorage.setItem('user_session', JSON.stringify(updatedUser));
 
       // Re-hydrate wishlist from response IDs
-      const allProducts = await (await fetch('http://localhost:8000/api/products')).json();
+      const allProducts = await getProducts();
       const hydrated = allProducts.filter(p => response.wishlist.includes(p._id));
       setWishlist(hydrated);
     } catch (error) {

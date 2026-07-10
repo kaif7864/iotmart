@@ -3,6 +3,7 @@ import ProductCard from '../../components/ui/ProductCard';
 import { Filter, Search, ChevronDown, SlidersHorizontal, Loader2, Grid, List as ListIcon, Star, Wifi, Bluetooth, Zap, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getProducts } from '../../services/api';
+import { SkeletonGrid } from '../../components/common';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../hooks/useCart';
 
@@ -70,7 +71,7 @@ const Shop = () => {
   const displayedProducts = filteredProducts.slice(0, visibleCount);
 
   return (
-    <div className="pt-32 pb-32 min-h-screen bg-slate-50">
+    <div className="pt-32 pb-32 min-h-screen bg-app-bg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Page Header */}
@@ -86,7 +87,7 @@ const Shop = () => {
               Browse <span className="text-accent">Components</span>
             </h1>
           </div>
-          <div className="flex bg-white border border-border-main p-1 rounded-sm shadow-sm">
+          <div className="flex bg-card-bg border border-border-main p-1 rounded-sm shadow-sm">
             <button 
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-sm transition-all ${viewMode === 'grid' ? 'bg-accent text-white shadow-md' : 'text-text-muted hover:text-accent'}`}
@@ -112,7 +113,7 @@ const Shop = () => {
             className="w-full lg:w-72 flex-shrink-0 space-y-8"
           >
             {/* Category Filter */}
-            <div className="bg-white p-8 rounded-sm border border-border-main shadow-sm">
+            <div className="bg-card-bg p-8 rounded-sm border border-border-main shadow-sm">
               <h3 className="text-text-primary text-[10px] font-black uppercase tracking-[0.2em] mb-6 flex items-center justify-between">
                 Categories <ChevronDown className="h-3 w-3 text-text-muted" />
               </h3>
@@ -124,7 +125,7 @@ const Shop = () => {
                     className={`w-full text-left px-4 py-2 rounded-sm text-xs font-bold transition-all ${
                       activeCategory === category 
                         ? 'bg-accent text-white shadow-lg' 
-                        : 'text-text-secondary hover:text-accent hover:bg-slate-50'
+                        : 'text-text-secondary hover:text-accent hover:bg-surface-hover'
                     }`}
                   >
                     {category}
@@ -134,7 +135,7 @@ const Shop = () => {
             </div>
 
             {/* Price & Connectivity */}
-            <div className="bg-white p-8 rounded-sm border border-border-main shadow-sm space-y-10">
+            <div className="bg-card-bg p-8 rounded-sm border border-border-main shadow-sm space-y-10">
               {/* Price Range */}
               <div>
                 <h3 className="text-text-primary text-[10px] font-black uppercase tracking-[0.2em] mb-6">Price Limit</h3>
@@ -144,7 +145,7 @@ const Shop = () => {
                   max="1000" 
                   value={priceRange} 
                   onChange={(e) => setPriceRange(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-slate-100 rounded-sm appearance-none cursor-pointer accent-accent"
+                  className="w-full h-1.5 bg-border-main rounded-sm appearance-none cursor-pointer accent-accent"
                 />
                 <div className="flex justify-between mt-3">
                   <span className="text-[10px] font-bold text-text-muted">{formatPrice(0)}</span>
@@ -163,7 +164,7 @@ const Shop = () => {
                       className={`px-3 py-1.5 rounded-sm text-[10px] font-bold border transition-all ${
                         selectedConnectivity.includes(tech)
                           ? 'bg-text-primary text-white border-text-primary shadow-md'
-                          : 'bg-white text-text-secondary border-border-main hover:border-accent'
+                          : 'bg-card-bg text-text-secondary border-border-main hover:border-accent'
                       }`}
                     >
                       {tech}
@@ -180,14 +181,14 @@ const Shop = () => {
                     <button 
                       key={star}
                       onClick={() => setSelectedRating(selectedRating === star ? 0 : star)}
-                      className={`flex items-center gap-2 w-full p-2 rounded-sm transition-all ${selectedRating === star ? 'bg-slate-50' : ''}`}
+                      className={`flex items-center gap-2 w-full p-2 rounded-sm transition-all ${selectedRating === star ? 'bg-surface-hover' : ''}`}
                     >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${selectedRating === star ? 'bg-accent border-accent' : 'border-slate-300'}`}>
-                        {selectedRating === star && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${selectedRating === star ? 'bg-accent border-accent' : 'border-border-main'}`}>
+                        {selectedRating === star && <div className="w-1.5 h-1.5 bg-card-bg rounded-full"></div>}
                       </div>
                       <div className="flex gap-0.5">
                         {[1, 2, 3, 4, 5].map(s => (
-                          <Star key={s} className={`h-3 w-3 ${s <= star ? 'fill-yellow-400 text-yellow-400' : 'text-slate-200'}`} />
+                          <Star key={s} className={`h-3 w-3 ${s <= star ? 'fill-status-star text-status-star' : 'text-border-main'}`} />
                         ))}
                       </div>
                       <span className="text-[10px] font-bold text-text-secondary">& Up</span>
@@ -205,7 +206,7 @@ const Shop = () => {
                   setSelectedRating(0);
                   setSelectedConnectivity([]);
                 }}
-                className="w-full py-3 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:bg-red-50 rounded-sm transition-all border border-red-100"
+                className="w-full py-3 text-[10px] font-black uppercase tracking-[0.2em] text-status-danger hover:bg-status-danger-bg rounded-sm transition-all border border-status-danger/20"
               >
                 Clear All Filters
               </button>
@@ -220,13 +221,13 @@ const Shop = () => {
             className="flex-grow space-y-8"
           >
             {/* Toolbar */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-6 p-4 bg-white rounded-sm border border-border-main shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6 p-4 bg-card-bg rounded-sm border border-border-main shadow-sm">
               <div className="relative w-full md:w-[400px]">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                 <input 
                   type="text" 
                   placeholder="Search products..." 
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-border-main rounded-sm text-sm text-text-primary focus:outline-none focus:border-accent transition-all"
+                  className="w-full pl-12 pr-4 py-3 bg-surface-hover border border-border-main rounded-sm text-sm text-text-primary focus:outline-none focus:border-accent transition-all"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -251,9 +252,8 @@ const Shop = () => {
 
             {/* Grid/List Display */}
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-48 space-y-4">
-                <Loader2 className="h-10 w-10 text-accent animate-spin" />
-                <p className="text-text-muted font-black tracking-[0.3em] uppercase text-[10px]">Updating Catalog...</p>
+              <div className="pt-4">
+                <SkeletonGrid count={6} />
               </div>
             ) : displayedProducts.length > 0 ? (
               <div className="space-y-12">
@@ -273,8 +273,8 @@ const Shop = () => {
                         {viewMode === 'grid' ? (
                           <ProductCard product={product} onAddToCart={onAddToCart} />
                         ) : (
-                          <div className="bg-white p-6 rounded-sm border border-border-main flex flex-col md:flex-row items-center gap-8 group hover:shadow-lg transition-all">
-                            <div className="w-32 h-32 bg-slate-50 rounded-sm p-4 flex-shrink-0">
+                          <div className="bg-card-bg p-6 rounded-sm border border-border-main flex flex-col md:flex-row items-center gap-8 group hover:shadow-lg transition-all">
+                            <div className="w-32 h-32 bg-surface-hover rounded-sm p-4 flex-shrink-0">
                               <img src={product.image} className="w-full h-full object-contain" />
                             </div>
                             <div className="flex-grow text-center md:text-left">
@@ -284,7 +284,7 @@ const Shop = () => {
                               <div className="flex items-center justify-center md:justify-start gap-4">
                                 <div className="text-2xl font-black text-text-primary">{formatPrice(product.price)}</div>
                                 <div className="flex items-center gap-1">
-                                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                  <Star className="h-3 w-3 fill-status-star text-status-star" />
                                   <span className="text-xs font-bold">{product.rating}</span>
                                 </div>
                               </div>
@@ -307,7 +307,7 @@ const Shop = () => {
                   <div className="text-center pt-8">
                     <button 
                       onClick={() => setVisibleCount(prev => prev + 6)}
-                      className="px-12 py-4 bg-white border-2 border-border-main text-text-primary rounded-sm font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-50 hover:border-accent transition-all shadow-sm"
+                      className="px-12 py-4 bg-card-bg border-2 border-border-main text-text-primary rounded-sm font-black text-[10px] uppercase tracking-[0.2em] hover:bg-surface-hover hover:border-accent transition-all shadow-sm"
                     >
                       Load More Products
                     </button>
@@ -315,8 +315,8 @@ const Shop = () => {
                 )}
               </div>
             ) : (
-              <div className="text-center py-32 bg-white rounded-sm border border-dashed border-border-main">
-                <X className="h-12 w-12 text-slate-200 mx-auto mb-6" />
+              <div className="text-center py-32 bg-card-bg rounded-sm border border-dashed border-border-main">
+                <X className="h-12 w-12 text-border-main mx-auto mb-6" />
                 <h3 className="text-2xl font-black text-text-primary mb-2 uppercase tracking-tight">No products found</h3>
                 <p className="text-text-secondary text-sm">Try adjusting your filters or search term.</p>
               </div>

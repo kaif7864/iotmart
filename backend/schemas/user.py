@@ -7,8 +7,10 @@ class Address(BaseModel):
     address: str
 
 class UserBase(BaseModel):
-    name: str
+    first_name: str
+    last_name: str
     email: str
+    phone: str
     role: str = "user"
     status: str = "active"
     wishlist: List[str] = [] # List of product IDs

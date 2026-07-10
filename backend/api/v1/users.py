@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Body
 from typing import List
 from core.database import db
 from schemas.user import User, UserCreate, Address
+from pydantic import BaseModel
 from bson import ObjectId
 
 router = APIRouter()
@@ -9,7 +10,9 @@ router = APIRouter()
 def user_helper(user) -> dict:
     return {
         "_id": str(user["_id"]),
-        "name": user["name"],
+        "first_name": user.get("first_name", user.get("name", "").split(" ")[0] if user.get("name") else ""),
+        "last_name": user.get("last_name", user.get("name", "").split(" ")[-1] if user.get("name") and " " in user.get("name") else ""),
+        "phone": user.get("phone", ""),
         "email": user["email"],
         "role": user.get("role", "user"),
         "status": user.get("status", "active"),
@@ -38,6 +41,23 @@ async def update_user_role(id: str, role: str = Body(..., embed=True)):
 async def update_user_status(id: str, status: str = Body(..., embed=True)):
     await db.users.update_one({"_id": ObjectId(id)}, {"$set": {"status": status}})
     return {"message": "Status updated"}
+
+class ProfileUpdate(BaseModel):
+    first_name: str
+    last_name: str
+    phone: str
+
+@router.put("/{id}/profile")
+async def update_user_profile(id: str, profile: dict = Body(...)):
+    await db.users.update_one(
+        {"_id": ObjectId(id)}, 
+        {"$set": {
+            "first_name": profile.get("first_name", ""),
+            "last_name": profile.get("last_name", ""),
+            "phone": profile.get("phone", "")
+        }}
+    )
+    return {"success": True, "message": "Profile updated"}
 
 @router.post("/{id}/wishlist")
 async def toggle_wishlist(id: str, product_id: str = Body(..., embed=True)):
