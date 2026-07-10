@@ -25,6 +25,7 @@ const ProductCard = ({ product }) => {
         <img 
           src={product.image} 
           alt={product.name} 
+          loading="lazy"
           className="w-full h-full object-contain p-4 transform transition-all duration-500 group-hover:scale-105"
         />
         <div className="absolute top-2 left-2 z-20">

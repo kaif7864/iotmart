@@ -18,6 +18,27 @@ load_dotenv()
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
 app = FastAPI(title="IoTMart API", version="1.0.0")
+
+from core.database import db
+from core.redis_cache import init_redis, close_redis
+import pymongo
+
+@app.on_event("startup")
+async def startup_db_indexes():
+    # Init Redis
+    await init_redis()
+    
+    # Index for fast user lookups
+    await db.users.create_index([("email", pymongo.ASCENDING)], unique=True)
+    # Index for fast product searching
+    await db.products.create_index([("category", pymongo.ASCENDING)])
+    await db.products.create_index([("name", pymongo.TEXT)])
+    # Index for fast order lookups by user
+    await db.orders.create_index([("user_id", pymongo.ASCENDING)])
+
+@app.on_event("shutdown")
+async def shutdown_db_clients():
+    await close_redis()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)

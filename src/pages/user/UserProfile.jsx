@@ -85,7 +85,7 @@ const UserProfile = () => {
     // Load recently viewed from localStorage
     const saved = JSON.parse(localStorage.getItem('recently_viewed') || '[]');
     setRecentlyViewed(saved);
-  }, [user]);
+  }, [user?._id]);
 
   const handleAddAddress = (e) => {
     e.preventDefault();

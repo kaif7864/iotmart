@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 class Config:
     MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
@@ -12,5 +12,6 @@ class Config:
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
     NEXAR_CLIENT_ID = os.getenv("NEXAR_CLIENT_ID", "")
     NEXAR_CLIENT_SECRET = os.getenv("NEXAR_CLIENT_SECRET", "")
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 settings = Config()

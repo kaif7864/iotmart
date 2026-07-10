@@ -24,7 +24,7 @@ export const WishlistProvider = ({ children }) => {
       }
     };
     hydrateInitialWishlist();
-  }, [user]);
+  }, [user?._id]);
 
   const toggleWishlist = async (product) => {
     if (!user || pendingToggles.has(product._id)) return;
