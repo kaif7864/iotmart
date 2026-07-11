@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, Body
 from typing import List
-from core.database import db
 from schemas.product import Product, ProductCreate
+from repositories.product_repo import product_repo
 from bson import ObjectId
+from fastapi import Depends
+from api.deps import get_current_active_admin
 
 router = APIRouter()
 
@@ -16,12 +18,11 @@ async def get_products(page: int = 1, limit: int = 100):
         return cached_data
 
     skip = (page - 1) * limit
-    cursor = db.products.find().skip(skip).limit(limit)
-    products = await cursor.to_list(length=limit)
+    products = await product_repo.get_all_products(skip, limit)
     for product in products:
         product["_id"] = str(product["_id"])
     
-    total = await db.products.count_documents({})
+    total = await product_repo.count_products()
     result = {
         "products": products,
         "total": total,
@@ -33,9 +34,9 @@ async def get_products(page: int = 1, limit: int = 100):
     return result
 
 @router.post("/", response_model=Product)
-async def create_product(product: ProductCreate = Body(...)):
-    new_product = await db.products.insert_one(product.model_dump())
-    created_product = await db.products.find_one({"_id": new_product.inserted_id})
+async def create_product(product: ProductCreate = Body(...), current_user: dict = Depends(get_current_active_admin)):
+    new_product = await product_repo.insert_product(product.model_dump())
+    created_product = await product_repo.get_product_by_id(str(new_product.inserted_id))
     created_product["_id"] = str(created_product["_id"])
     
     await delete_cache("products:page:*")
@@ -43,20 +44,17 @@ async def create_product(product: ProductCreate = Body(...)):
 
 @router.get("/{id}", response_model=Product)
 async def get_product(id: str):
-    product = await db.products.find_one({"_id": ObjectId(id)})
+    product = await product_repo.get_product_by_id(id)
     if product:
         product["_id"] = str(product["_id"])
         return product
     raise HTTPException(status_code=404, detail="Product not found")
 
 @router.put("/{id}", response_model=Product)
-async def update_product(id: str, product: ProductCreate = Body(...)):
-    updated = await db.products.update_one(
-        {"_id": ObjectId(id)},
-        {"$set": product.model_dump()}
-    )
+async def update_product(id: str, product: ProductCreate = Body(...), current_user: dict = Depends(get_current_active_admin)):
+    updated = await product_repo.update_product(id, product.model_dump())
     if updated.modified_count:
-        product_data = await db.products.find_one({"_id": ObjectId(id)})
+        product_data = await product_repo.get_product_by_id(id)
         product_data["_id"] = str(product_data["_id"])
         
         await delete_cache("products:page:*")
@@ -64,8 +62,8 @@ async def update_product(id: str, product: ProductCreate = Body(...)):
     raise HTTPException(status_code=404, detail="Product not found or no changes made")
 
 @router.delete("/{id}")
-async def delete_product(id: str):
-    delete_result = await db.products.delete_one({"_id": ObjectId(id)})
+async def delete_product(id: str, current_user: dict = Depends(get_current_active_admin)):
+    delete_result = await product_repo.delete_product(id)
     if delete_result.deleted_count == 1:
         await delete_cache("products:page:*")
         return {"message": "Product deleted successfully"}
@@ -73,7 +71,7 @@ async def delete_product(id: str):
 
 @router.post("/{id}/reviews")
 async def add_review(id: str, review: dict = Body(...)):
-    product = await db.products.find_one({"_id": ObjectId(id)})
+    product = await product_repo.get_product_by_id(id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     user_id = review.get("user_id")
@@ -81,6 +79,7 @@ async def add_review(id: str, review: dict = Body(...)):
     
     if user_id:
         # Check if user has placed an order containing this product
+        from core.database import db
         order = await db.orders.find_one({
             "user_id": user_id, 
             "items.product_id": id
@@ -96,12 +95,9 @@ async def add_review(id: str, review: dict = Body(...)):
     # Simple average rating calculation
     avg_rating = sum(r["rating"] for r in reviews) / len(reviews)
     
-    await db.products.update_one(
-        {"_id": ObjectId(id)},
-        {"$set": {
-            "reviews": reviews,
-            "reviews_count": len(reviews),
-            "rating": round(avg_rating, 1)
-        }}
-    )
+    await product_repo.update_product(id, {
+        "reviews": reviews,
+        "reviews_count": len(reviews),
+        "rating": round(avg_rating, 1)
+    })
     return {"message": "Review added", "rating": avg_rating}

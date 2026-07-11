@@ -1,15 +1,18 @@
-from fastapi import APIRouter, HTTPException, Body, Request
+from fastapi import APIRouter, HTTPException, Body, Request, BackgroundTasks
+import os
 from core.database import db
 from schemas.user import UserCreate
 from core.security import get_password_hash, verify_password, create_access_token
 from bson import ObjectId
+from services.user_service import serialize_user
+from repositories.user_repo import user_repo
 
 router = APIRouter()
 
 @router.post("/signup")
-async def signup(user: UserCreate):
+async def signup(user: UserCreate, background_tasks: BackgroundTasks):
     # Check if user exists
-    existing_user = await db.users.find_one({"email": user.email})
+    existing_user = await user_repo.get_user_by_email(user.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="Account already registered")
     
@@ -18,26 +21,23 @@ async def signup(user: UserCreate):
     user_dict["role"] = "user" # Default role
     user_dict["status"] = "active"
     
-    result = await db.users.insert_one(user_dict)
+    result = await user_repo.insert_user(user_dict)
     
-    # Trigger Welcome Email
-    try:
-        from services.email_service import send_welcome_email
-        send_welcome_email(user.first_name, user.email)
-    except Exception as e:
-        print(f"Failed to send welcome email: {e}")
+    # Trigger Welcome Email (Async)
+    from services.email_service import send_welcome_email
+    background_tasks.add_task(send_welcome_email, user.first_name, user.email)
         
     return {"message": "Identity initialized", "id": str(result.inserted_id)}
 
 @router.post("/login")
 async def login(email: str = Body(...), password: str = Body(...)):
-    user = await db.users.find_one({"email": email})
+    user = await user_repo.get_user_by_email(email)
     if not user:
         raise HTTPException(status_code=400, detail="Invalid credentials")
         
     if user.get("status") == "inactive":
         # Auto-reactivate account
-        await db.users.update_one({"_id": user["_id"]}, {"$set": {"status": "active"}})
+        await user_repo.update_user(str(user["_id"]), {"status": "active"})
         user["status"] = "active"
     
     if not verify_password(password, user["password"]):
@@ -48,30 +48,18 @@ async def login(email: str = Body(...), password: str = Body(...)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": {
-            "_id": str(user["_id"]),
-            "first_name": user.get("first_name", user.get("name", "").split(" ")[0] if user.get("name") else ""),
-            "last_name": user.get("last_name", user.get("name", "").split(" ")[-1] if user.get("name") and " " in user.get("name") else ""),
-            "phone": user.get("phone", ""),
-            "email": user["email"],
-            "role": user.get("role", "user"),
-            "wishlist": user.get("wishlist", []),
-            "addresses": user.get("addresses", []),
-            "email_verified": user.get("email_verified", False),
-            "mobile_verified": user.get("mobile_verified", False),
-            "has_custom_password": user.get("has_custom_password", True)
-        }
+        "user": serialize_user(user)
     }
 
 from google.oauth2 import id_token
 from google.auth.transport import requests
-import os
 import httpx
+from core.config import settings
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "dummy-client-id.apps.googleusercontent.com")
+GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID or "dummy-client-id.apps.googleusercontent.com"
 
 @router.post("/google")
-async def google_login(credential: str = Body(..., embed=True)):
+async def google_login(credential: str = Body(..., embed=True), background_tasks: BackgroundTasks = None):
     try:
         # Credential here is the Google Access Token returned by useGoogleLogin
         async with httpx.AsyncClient() as client:
@@ -93,11 +81,11 @@ async def google_login(credential: str = Body(..., embed=True)):
             raise HTTPException(status_code=400, detail="Google account has no email")
         
         # Check if user already exists
-        user = await db.users.find_one({"email": email})
+        user = await user_repo.get_user_by_email(email)
         
         if user and user.get("status") == "inactive":
             # Auto-reactivate
-            await db.users.update_one({"_id": user["_id"]}, {"$set": {"status": "active"}})
+            await user_repo.update_user(str(user["_id"]), {"status": "active"})
             user["status"] = "active"
         
         if not user:
@@ -114,15 +102,15 @@ async def google_login(credential: str = Body(..., embed=True)):
                 "addresses": [],
                 "has_custom_password": False
             }
-            result = await db.users.insert_one(user_dict)
-            user = await db.users.find_one({"_id": result.inserted_id})
+            result = await user_repo.insert_user(user_dict)
+            user = await user_repo.get_user_by_id(str(result.inserted_id))
             
-            # Trigger Welcome Email
-            try:
-                from services.email_service import send_welcome_email
+            # Trigger Welcome Email (Async)
+            from services.email_service import send_welcome_email
+            if background_tasks:
+                background_tasks.add_task(send_welcome_email, user.get("first_name", ""), user["email"])
+            else:
                 send_welcome_email(user.get("first_name", ""), user["email"])
-            except Exception as e:
-                pass
                 
         # Generate our JWT token for the user
         access_token = create_access_token(data={"sub": user["email"], "role": user.get("role", "user")})
@@ -130,20 +118,7 @@ async def google_login(credential: str = Body(..., embed=True)):
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "user": {
-                "_id": str(user["_id"]),
-                "first_name": user.get("first_name", user.get("name", "").split(" ")[0] if user.get("name") else ""),
-                "last_name": user.get("last_name", user.get("name", "").split(" ")[-1] if user.get("name") and " " in user.get("name") else ""),
-                "phone": user.get("phone", ""),
-                "email": user["email"],
-                "role": user.get("role", "user"),
-                "wishlist": user.get("wishlist", []),
-                "addresses": user.get("addresses", []),
-                "profile_picture": user.get("profile_picture", ""),
-                "email_verified": user.get("email_verified", False),
-                "mobile_verified": user.get("mobile_verified", False),
-                "has_custom_password": user.get("has_custom_password", False)
-            }
+            "user": serialize_user(user)
         }
         
     except ValueError as e:
@@ -154,8 +129,8 @@ import random
 import uuid
 
 @router.post("/send-verification")
-async def send_verification(email: str = Body(...), type: str = Body(...)):
-    user = await db.users.find_one({"email": email})
+async def send_verification(email: str = Body(...), type: str = Body(...), background_tasks: BackgroundTasks = None):
+    user = await user_repo.get_user_by_email(email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -167,16 +142,24 @@ async def send_verification(email: str = Body(...), type: str = Body(...)):
     
     if type == 'email':
         email_token = str(uuid.uuid4())
-        await db.users.update_one({"email": email}, {"$set": {"email_verify_token": email_token}})
-        email_sent = send_verification_email(email, email_token)
+        await user_repo.collection.update_one({"email": email}, {"$set": {"email_verify_token": email_token}})
+        if background_tasks:
+            background_tasks.add_task(send_verification_email, email, email_token)
+            email_sent = True
+        else:
+            email_sent = send_verification_email(email, email_token)
     elif type == 'mobile':
         otp = str(random.randint(100000, 999999))
-        await db.users.update_one({"email": email}, {"$set": {"mobile_otp": otp}})
+        await user_repo.collection.update_one({"email": email}, {"$set": {"mobile_otp": otp}})
         phone = user.get("phone")
         if phone:
             if not phone.startswith("+"):
                 phone = "+91" + phone[-10:]
-            sms_sent = send_otp_sms(phone, otp)
+            if background_tasks:
+                background_tasks.add_task(send_otp_sms, phone, otp)
+                sms_sent = True
+            else:
+                sms_sent = send_otp_sms(phone, otp)
     else:
         raise HTTPException(status_code=400, detail="Invalid verification type")
         
@@ -194,14 +177,14 @@ async def send_verification(email: str = Body(...), type: str = Body(...)):
 
 @router.post("/verify-mobile")
 async def verify_mobile(email: str = Body(...), otp: str = Body(...)):
-    user = await db.users.find_one({"email": email})
+    user = await user_repo.get_user_by_email(email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
     if user.get("mobile_otp") != otp:
         raise HTTPException(status_code=400, detail="Invalid OTP")
         
-    await db.users.update_one(
+    await user_repo.collection.update_one(
         {"email": email},
         {
             "$set": {"mobile_verified": True},
@@ -212,11 +195,11 @@ async def verify_mobile(email: str = Body(...), otp: str = Body(...)):
 
 @router.post("/verify-email")
 async def verify_email(token: str = Body(..., embed=True)):
-    user = await db.users.find_one({"email_verify_token": token})
+    user = await user_repo.collection.find_one({"email_verify_token": token})
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired verification link")
         
-    await db.users.update_one(
+    await user_repo.collection.update_one(
         {"_id": user["_id"]},
         {
             "$set": {"email_verified": True},
@@ -228,33 +211,36 @@ async def verify_email(token: str = Body(..., embed=True)):
 from core.security import get_password_hash
 
 @router.post("/forgot-password")
-async def forgot_password(email: str = Body(..., embed=True)):
-    user = await db.users.find_one({"email": email})
+async def forgot_password(email: str = Body(..., embed=True), background_tasks: BackgroundTasks = None):
+    user = await user_repo.get_user_by_email(email)
     if not user:
         # Don't reveal if user exists or not for security
         return {"success": True, "message": "If an account exists, a reset link was sent."}
         
     reset_token = str(uuid.uuid4())
     
-    await db.users.update_one(
+    await user_repo.collection.update_one(
         {"email": email},
         {"$set": {"reset_password_token": reset_token}}
     )
     
     from services.email_service import send_password_reset_email
-    send_password_reset_email(email, reset_token)
+    if background_tasks:
+        background_tasks.add_task(send_password_reset_email, email, reset_token)
+    else:
+        send_password_reset_email(email, reset_token)
     
     return {"success": True, "message": "If an account exists, a reset link was sent."}
 
 @router.post("/reset-password")
 async def reset_password(token: str = Body(...), new_password: str = Body(...)):
-    user = await db.users.find_one({"reset_password_token": token})
+    user = await user_repo.collection.find_one({"reset_password_token": token})
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")
         
     hashed_password = get_password_hash(new_password)
     
-    await db.users.update_one(
+    await user_repo.collection.update_one(
         {"_id": user["_id"]},
         {
             "$set": {"password": hashed_password},
@@ -265,7 +251,7 @@ async def reset_password(token: str = Body(...), new_password: str = Body(...)):
 
 @router.put("/update-identity")
 async def update_identity(email: str = Body(None), phone: str = Body(None), user_id: str = Body(...)):
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await user_repo.get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -280,23 +266,13 @@ async def update_identity(email: str = Body(None), phone: str = Body(None), user
         update_data["mobile_verified"] = False
         
     if update_data:
-        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
+        await user_repo.update_user(user_id, update_data)
         # Fetch updated user
-        updated_user = await db.users.find_one({"_id": ObjectId(user_id)})
+        updated_user = await user_repo.get_user_by_id(user_id)
         return {
             "success": True, 
             "message": "Identity updated",
-            "user": {
-                "_id": str(updated_user["_id"]),
-                "first_name": updated_user.get("first_name", ""),
-                "last_name": updated_user.get("last_name", ""),
-                "phone": updated_user.get("phone", ""),
-                "email": updated_user.get("email", ""),
-                "role": updated_user.get("role", "user"),
-                "email_verified": updated_user.get("email_verified", False),
-                "mobile_verified": updated_user.get("mobile_verified", False),
-                "has_custom_password": updated_user.get("has_custom_password", True)
-            }
+            "user": serialize_user(updated_user)
         }
     
     return {"success": True, "message": "No changes made"}

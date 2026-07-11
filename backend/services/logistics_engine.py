@@ -1,13 +1,13 @@
-import os
 import httpx
+from core.config import settings
 import json
 from datetime import datetime
 
 class ShiprocketLogistics:
     def __init__(self):
         self.base_url = "https://apiv2.shiprocket.in/v1/external"
-        self.email = os.getenv("SHIPROCKET_EMAIL", "mock_email@iotmart.com")
-        self.password = os.getenv("SHIPROCKET_PASSWORD", "mock_pass")
+        self.email = settings.SHIPROCKET_EMAIL or "mock_email@iotmart.com"
+        self.password = settings.SHIPROCKET_PASSWORD or "mock_pass"
         self.token = None
         
         # If no real keys are provided, we run in MOCK mode to prevent crashes

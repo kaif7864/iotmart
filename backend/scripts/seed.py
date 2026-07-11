@@ -88,6 +88,7 @@ async def seed():
     print("Seeding products...")
     await db.products.insert_many(initial_products)
     
+    # pyrefly: ignore [missing-import]
     from routes_auth import pwd_context
     
     print("Seeding users...")

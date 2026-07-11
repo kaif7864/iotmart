@@ -2,8 +2,9 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 
 async def main():
-    client = AsyncIOMotorClient('mongodb://localhost:27017')
-    db = client['iot_ecommerce']
+    from core.config import settings
+    client = AsyncIOMotorClient(settings.MONGODB_URL)
+    db = client[settings.DATABASE_NAME]
     await db.users.update_many(
         {'profile_picture': {'$regex': 'googleusercontent'}},
         {'$set': {'has_custom_password': False}}

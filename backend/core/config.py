@@ -1,19 +1,28 @@
-import os
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv(override=True)
+class Settings(BaseSettings):
+    MONGODB_URL: str = "mongodb://localhost:27017"
+    DATABASE_NAME: str = "iot_mart"
+    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200 # 30 days
+    GROQ_API_KEY: str = ""
+    NEXAR_CLIENT_ID: str = ""
+    NEXAR_CLIENT_SECRET: str = ""
+    REDIS_URL: str = "redis://localhost:6379/0"
+    GMAIL_USER: str = ""
+    GMAIL_PASSWORD: str = ""
+    GOOGLE_CLIENT_ID: str = ""
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_PHONE_NUMBER: str = ""
+    CASHFREE_APP_ID: str = ""
+    CASHFREE_SECRET_KEY: str = ""
+    CASHFREE_WEBHOOK_SECRET: str = ""
+    SHIPROCKET_EMAIL: str = ""
+    SHIPROCKET_PASSWORD: str = ""
+    FRONTEND_URL: str = "http://localhost:5173"
 
-class Config:
-    MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-    DATABASE_NAME = os.getenv("DATABASE_NAME", "iot_mart")
-    SECRET_KEY = os.getenv("SECRET_KEY", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7")
-    ALGORITHM = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30 # 30 days
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-    NEXAR_CLIENT_ID = os.getenv("NEXAR_CLIENT_ID", "")
-    NEXAR_CLIENT_SECRET = os.getenv("NEXAR_CLIENT_SECRET", "")
-    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    GMAIL_USER = os.getenv("GMAIL_USER", "")
-    GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD", "")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-settings = Config()
+settings = Settings()

@@ -3,10 +3,11 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from core.config import settings
+from core.logger import logger
 
 def send_verification_email(to_email: str, token: str):
     subject = "Verify your IoTMart Account"
-    link = f"http://localhost:5173/verify-email?token={token}"
+    link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
     
     plain_text = f"Hello,\n\nPlease verify your email address by clicking the link below:\n{link}\n\nIf you did not request this, please ignore this email.\n\n- The IoTMart Team"
     
@@ -46,7 +47,7 @@ def send_verification_email(to_email: str, token: str):
 
 def send_password_reset_email(to_email: str, token: str):
     subject = "Reset Your IoTMart Password"
-    link = f"http://localhost:5173/reset-password?token={token}"
+    link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
     
     plain_text = f"Hello,\n\nYou requested to reset your password. Click the link below:\n{link}\n\nIf you did not request this, please ignore this email.\n\n- The IoTMart Team"
     
@@ -97,7 +98,7 @@ def send_welcome_email(name: str, to_email: str):
                 <h2 style="color: #1a1a1a; margin-top: 0;">Welcome, {name}! 🎉</h2>
                 <p style="color: #52525b; line-height: 1.6; font-size: 16px;">We are thrilled to have you on board. At IoTMart, you will find the best smart devices to automate your life.</p>
                 <div style="text-align: center; margin: 35px 0;">
-                    <a href="http://localhost:5173" style="background-color: #0070f3; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Start Exploring</a>
+                    <a href="{settings.FRONTEND_URL}" style="background-color: #0070f3; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Start Exploring</a>
                 </div>
             </div>
         </div>
@@ -107,10 +108,10 @@ def send_welcome_email(name: str, to_email: str):
     return _send_email(to_email, subject, plain_text, html_content)
 
 def _send_email(to_email: str, subject: str, plain_text: str, html_content: str) -> bool:
-    print(f"🚀 [EMAIL OUTGOING] To: {to_email} | Sub: {subject}")
+    logger.info(f"🚀 [EMAIL OUTGOING] To: {to_email} | Sub: {subject}")
     
     if not settings.GMAIL_USER or not settings.GMAIL_PASSWORD:
-        print("❌ Missing Gmail credentials in .env")
+        logger.error("❌ Missing Gmail credentials in .env")
         return False
         
     try:
@@ -120,7 +121,8 @@ def _send_email(to_email: str, subject: str, plain_text: str, html_content: str)
         msg['To'] = to_email
         msg['Subject'] = subject
         msg['Date'] = email.utils.formatdate(localtime=True)
-        msg['Message-ID'] = email.utils.make_msgid(domain='iotmart.local')
+        # Fix: Use gmail.com domain to match SMTP origin to reduce spam flag
+        msg['Message-ID'] = email.utils.make_msgid(domain='gmail.com')
         msg['Reply-To'] = settings.GMAIL_USER
         
         # Attach both plain and HTML versions to reduce spam likelihood
@@ -132,8 +134,8 @@ def _send_email(to_email: str, subject: str, plain_text: str, html_content: str)
         server.login(settings.GMAIL_USER, settings.GMAIL_PASSWORD)
         server.send_message(msg)
         server.quit()
-        print("✅ Email sent successfully.")
+        logger.info("✅ Email sent successfully.")
         return True
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+        logger.error(f"❌ Failed to send email: {e}")
         return False

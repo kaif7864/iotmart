@@ -1,12 +1,12 @@
-import os
 from twilio.rest import Client
+from core.config import settings
 
 def send_otp_sms(phone: str, otp: str) -> bool:
     print(f"🚀 [SMS OUTGOING] To: {phone}")
     
-    twilio_sid = os.getenv("TWILIO_ACCOUNT_SID", "")
-    twilio_token = os.getenv("TWILIO_AUTH_TOKEN", "")
-    twilio_phone = os.getenv("TWILIO_PHONE_NUMBER", "")
+    twilio_sid = settings.TWILIO_ACCOUNT_SID
+    twilio_token = settings.TWILIO_AUTH_TOKEN
+    twilio_phone = settings.TWILIO_PHONE_NUMBER
     
     if not twilio_sid or not twilio_token or not twilio_phone:
         print("❌ Missing Twilio credentials in .env")

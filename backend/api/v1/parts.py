@@ -11,8 +11,7 @@ from core.config import settings
 GROQ_API_KEY = settings.GROQ_API_KEY
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-class PartGenRequest(BaseModel):
-    part_name: str
+from schemas.part import PartGenRequest
 
 @router.post("/ai/generate-part")
 async def generate_part(req: PartGenRequest):

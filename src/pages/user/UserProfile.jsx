@@ -3,11 +3,11 @@ import {
   User, Package, MapPin, Heart, LogOut, 
   ChevronRight, ExternalLink, Shield, Bell, 
   Settings, Clock, CreditCard, ChevronDown, Plus, 
-  Trash2, Eye, LayoutDashboard, History, Download, Loader2, CheckCircle2, X, Ticket, Gift, ShieldCheck, Mail, Phone
+  Trash2, Eye, LayoutDashboard, History, Download, Loader2, CheckCircle2, X, Ticket, Gift, ShieldCheck, Mail, Phone, Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getOrdersByUser, getLiveTracking, updateUserProfile, sendVerification, verifyMobile, changeUserPassword, updateOrderStatus, updateIdentity, forgotPassword, deactivateAccount } from '../../services/api';
+import { getOrdersByUser, getLiveTracking, updateUserProfile, sendVerification, verifyMobile, changeUserPassword, updateOrderStatus, updateIdentity, forgotPassword, deactivateAccount, addProductReview } from '../../services/api';
 import toast from 'react-hot-toast';
 import OrderTimeline from '../../components/ui/OrderTimeline';
 import { generateInvoice } from '../../utils/generateInvoice';
@@ -33,6 +33,9 @@ const UserProfile = () => {
   const { user, setUser, logout, addresses, addAddress, removeAddress, formatPrice, currency } = useAuth();
   const { wishlist, toggleWishlist } = useWishlist();
   const [orders, setOrders] = useState([]);
+  const [reviewModal, setReviewModal] = useState({ isOpen: false, productId: null, productName: '' });
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [expandedOrderId, setExpandedOrderId] = useState(null);
@@ -243,6 +246,33 @@ const UserProfile = () => {
     }
   };
 
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewForm.comment.trim()) {
+      toast.error('Please enter a review comment');
+      return;
+    }
+    setIsSubmittingReview(true);
+    try {
+      const reviewData = {
+        user_id: user._id,
+        user: user.first_name + ' ' + (user.last_name || ''),
+        rating: reviewForm.rating,
+        comment: reviewForm.comment,
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      };
+      await addProductReview(reviewModal.productId, reviewData);
+      toast.success('Review submitted successfully! Thank you for your feedback.');
+      setReviewModal({ isOpen: false, productId: null, productName: '' });
+      setReviewForm({ rating: 5, comment: '' });
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      toast.error(error.response?.data?.detail || 'Failed to submit review');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   useEffect(() => {
     const fetchOrders = async () => {
       if (user) {
@@ -392,7 +422,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
             <main className="flex-grow p-6 md:p-10">
             <AnimatePresence mode="wait">
               {activeTab === 'dashboard' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card rounded-[32px] p-10 space-y-10">
+                <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card rounded-[32px] p-10 space-y-10">
                   <div className="flex items-center justify-between border-b border-border-subtle pb-6">
                     <h3 className="heading-section flex items-center gap-3">
                       <LayoutDashboard className="h-6 w-6 text-accent" /> Account Overview
@@ -437,7 +467,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               )}
 
               {activeTab === 'orders' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                   {loading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {[...Array(4)].map((_, i) => (
@@ -486,14 +516,28 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                           <h4 className="label-caps mb-4">Purchased Items</h4>
                           <div className="space-y-3">
                             {order.items.map((item, idx) => (
-                              <div key={idx} className="flex items-center justify-between p-5 card rounded-2xl hover:border-accent/30 transition-all">
+                              <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 card rounded-2xl hover:border-accent/30 transition-all gap-4">
                                 <div className="flex items-center gap-4">
-                                  <div className="w-2 h-2 rounded-full bg-accent" />
-                                  <span className="text-sm font-bold text-text-primary uppercase tracking-tight">{item.name}</span>
+                                  <div className="w-2 h-2 rounded-full bg-accent shrink-0" />
+                                  <Link to={`/product/${item.product_id}`} className="text-sm font-bold text-text-primary uppercase tracking-tight hover:text-accent transition-colors">
+                                    {item.name}
+                                  </Link>
                                 </div>
-                                <div className="flex items-center gap-6">
-                                  <span className="label-caps bg-surface px-3 py-1 rounded-full">Qty: {item.quantity}</span>
+                                <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto">
+                                  <span className="label-caps bg-surface px-3 py-1 rounded-full whitespace-nowrap">Qty: {item.quantity}</span>
                                   <span className="text-sm font-black text-text-secondary min-w-[80px] text-right">{formatPrice(item.price * item.quantity)}</span>
+                                  
+                                  {order.status === 'Delivered' && (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        setReviewModal({ isOpen: true, productId: item.product_id, productName: item.name });
+                                      }}
+                                      className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-accent/10 text-accent px-3 py-1.5 rounded-full hover:bg-accent hover:text-white transition-all ml-2 whitespace-nowrap"
+                                    >
+                                      <Star className="w-3 h-3" /> Rate
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             ))}
@@ -582,7 +626,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               )}
 
               {activeTab === 'wishlist' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <motion.div key="wishlist" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     {wishlist.map((product) => (
                       <div key={product._id} className="bg-card-bg p-6 rounded-[32px] border border-border-main flex items-center gap-6 group hover:shadow-lg transition-all">
@@ -612,7 +656,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               )}
 
               {activeTab === 'addresses' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                <motion.div key="addresses" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {addresses.map((addr) => (
                       <div key={addr.id} className="bg-card-bg p-8 rounded-[32px] border border-border-main relative group">
@@ -658,7 +702,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               )}
 
               {activeTab === 'settings' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+                <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
                   <div className="card rounded-[32px] p-10">
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <User className="h-6 w-6 text-accent" /> Personal Information
@@ -730,7 +774,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               )}
 
               {activeTab === 'notifications' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+                <motion.div key="notifications" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
                   <div className="card rounded-[32px] p-10">
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <Bell className="h-6 w-6 text-accent" /> Notification Preferences
@@ -757,7 +801,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               )}
 
               {activeTab === 'payments' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+                <motion.div key="payments" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
                   <div className="card rounded-[32px] p-10">
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <CreditCard className="h-6 w-6 text-accent" /> Payment Methods
@@ -779,7 +823,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               )}
 
               {activeTab === 'security' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+                <motion.div key="security" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
                   <div className="card rounded-[32px] p-10">
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <Shield className="h-6 w-6 text-status-success" /> Account Security
@@ -1034,7 +1078,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               </AnimatePresence>
 
               {activeTab === 'coupons' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+                <motion.div key="coupons" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
                   <div className="card rounded-[32px] p-10">
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <Ticket className="h-6 w-6 text-accent" /> My Coupons
@@ -1056,7 +1100,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               )}
 
               {activeTab === 'giftcards' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+                <motion.div key="giftcards" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
                   <div className="card rounded-[32px] p-10 flex flex-col items-center justify-center text-center py-20">
                     <div className="w-24 h-24 bg-accent-light rounded-full flex items-center justify-center text-accent mb-6">
                       <Gift className="h-10 w-10" />
@@ -1092,6 +1136,68 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
         trackingData={trackingData} 
         trackingLoading={trackingLoading} 
       />
+
+      <AnimatePresence>
+        {reviewModal.isOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+              className="bg-card-bg border border-border-main rounded-3xl p-8 max-w-lg w-full shadow-2xl relative"
+            >
+              <button 
+                onClick={() => setReviewModal({ isOpen: false, productId: null, productName: '' })}
+                className="absolute top-6 right-6 p-2 rounded-full hover:bg-surface transition-colors"
+              >
+                <X className="w-5 h-5 text-text-muted hover:text-text-primary" />
+              </button>
+              
+              <h3 className="text-2xl font-black text-text-primary mb-2 uppercase tracking-tight">Rate Product</h3>
+              <p className="text-sm font-bold text-accent mb-8 line-clamp-1">{reviewModal.productName}</p>
+              
+              <form onSubmit={handleReviewSubmit}>
+                <div className="mb-8">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block mb-4">Your Rating</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button 
+                        key={star} 
+                        type="button"
+                        onClick={() => setReviewForm({ ...reviewForm, rating: star })}
+                        className="focus:outline-none transition-transform hover:scale-110"
+                      >
+                        <Star className={`w-10 h-10 ${star <= reviewForm.rating ? 'fill-amber-400 text-amber-400 drop-shadow-md' : 'text-border-subtle hover:text-border-main'}`} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="mb-8">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block mb-4">Your Review</label>
+                  <textarea 
+                    rows="4" 
+                    required
+                    value={reviewForm.comment}
+                    onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                    placeholder="Tell us what you liked or disliked about this product..."
+                    className="w-full bg-surface border border-border-main rounded-xl p-4 text-sm text-text-primary focus:ring-2 focus:ring-accent/50 focus:border-accent outline-none transition-all resize-none shadow-inner"
+                  />
+                </div>
+                
+                <button 
+                  type="submit" 
+                  disabled={isSubmittingReview}
+                  className="w-full py-4 bg-text-primary text-white text-xs font-bold rounded-xl uppercase tracking-widest hover:bg-text-secondary transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmittingReview ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Review'}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

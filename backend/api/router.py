@@ -15,7 +15,7 @@ from api.v1.payments import router as payments_router
 
 api_router = APIRouter()
 
-from core.security import get_current_user
+from api.deps import get_current_user
 from fastapi import Depends
 
 api_router.include_router(product_router, prefix="/products", tags=["Products"])
