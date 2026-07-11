@@ -4,7 +4,7 @@ import {
   ArrowLeft, Star, ShoppingCart, CheckCircle, Package, PackageX, 
   Truck, Shield, RotateCcw, Loader2, MessageSquare, Plus, Upload, 
   Camera, Image as ImageIcon, Scale, Play, Activity, Cpu, Zap, 
-  Thermometer, Droplets, Info, ExternalLink, X, Wifi
+  Thermometer, Droplets, Info, ExternalLink, X, Wifi, CheckCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../../components/ui/ProductCard';
@@ -75,7 +75,8 @@ const ProductDetail = () => {
         return;
     }
     const newReview = {
-        user: user.name,
+        user_id: user._id,
+        user: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.name || "User",
         rating: userRating,
         comment: reviewText,
         date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -478,8 +479,16 @@ const ProductDetail = () => {
                         {rev.user.charAt(0)}
                       </div>
                       <div>
-                        <h5 className="font-black text-text-primary text-lg uppercase tracking-tight">{rev.user}</h5>
-                        <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mt-1">{rev.date}</p>
+                        <div className="flex items-center gap-3 mb-1">
+                          <h4 className="font-black text-text-primary text-sm uppercase tracking-tight">{rev.user}</h4>
+                          {rev.verified_buyer && (
+                            <span className="badge-success text-[8px] bg-status-success/20 text-status-success px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" />
+                              Verified Buyer
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">{rev.date}</p>
                       </div>
                     </div>
                     <div className="flex gap-0.5">

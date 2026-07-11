@@ -76,7 +76,20 @@ async def add_review(id: str, review: dict = Body(...)):
     product = await db.products.find_one({"_id": ObjectId(id)})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-        
+    user_id = review.get("user_id")
+    verified_buyer = False
+    
+    if user_id:
+        # Check if user has placed an order containing this product
+        order = await db.orders.find_one({
+            "user_id": user_id, 
+            "items.product_id": id
+        })
+        if order:
+            verified_buyer = True
+            
+    review["verified_buyer"] = verified_buyer
+    
     reviews = product.get("reviews", [])
     reviews.append(review)
     
