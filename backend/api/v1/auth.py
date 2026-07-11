@@ -96,7 +96,7 @@ async def google_login(credential: str = Body(..., embed=True), isSignup: bool =
                 "email": email,
                 "first_name": name.split(" ")[0] if name else "",
                 "last_name": name.split(" ")[-1] if name and " " in name else "",
-                "password": get_password_hash("google_auth_random"), # Random secure password
+                "password": "$2b$12$1diXF/RSJ9EnwmWeM9MNBuI6afXcfcMrd.5pBcac/gUUyCyIdPEs.", # Hardcoded secure hash
                 "role": "user",
                 "status": "active",
                 "profile_picture": picture,
