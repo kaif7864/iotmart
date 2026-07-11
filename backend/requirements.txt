@@ -4,4 +4,7 @@ motor
 pydantic
 pydantic-settings
 python-dotenv
-cors
+redis
+httpx
+google-auth
+requests
