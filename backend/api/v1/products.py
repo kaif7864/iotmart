@@ -12,13 +12,18 @@ from core.redis_cache import get_cache, set_cache, delete_cache
 
 @router.get("/")
 async def get_products(page: int = 1, limit: int = 100):
+    print("DEBUG: Inside get_products")
     cache_key = f"products:page:{page}:limit:{limit}"
+    print("DEBUG: Checking cache")
     cached_data = await get_cache(cache_key)
+    print("DEBUG: Cache check done")
     if cached_data:
         return cached_data
 
     skip = (page - 1) * limit
+    print("DEBUG: Querying DB")
     products = await product_repo.get_all_products(skip, limit)
+    print("DEBUG: Query done")
     for product in products:
         product["_id"] = str(product["_id"])
     

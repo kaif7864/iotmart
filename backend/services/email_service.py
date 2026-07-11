@@ -107,35 +107,78 @@ def send_welcome_email(name: str, to_email: str):
     """
     return _send_email(to_email, subject, plain_text, html_content)
 
+def send_order_confirmation_email(to_email: str, order_id: str, total_amount: float):
+    subject = f"Order Confirmation - #{order_id}"
+    
+    plain_text = f"Hello,\n\nThank you for your order! Your order #{order_id} for a total of ₹{total_amount} has been placed successfully.\n\nTrack your order in the My Orders section.\n\n- The IoTMart Team"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 40px 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <div style="background-color: #0070f3; padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; letter-spacing: 2px;">IoTMart</h1>
+            </div>
+            <div style="padding: 40px 30px;">
+                <h2 style="color: #1a1a1a; margin-top: 0;">Order Confirmed! ✅</h2>
+                <p style="color: #52525b; line-height: 1.6; font-size: 16px;">Thank you for shopping with us! Your order <strong>#{order_id}</strong> has been received and is currently being processed.</p>
+                <div style="background-color: #f8fafc; border-left: 4px solid #0070f3; padding: 15px; margin: 20px 0;">
+                    <p style="margin: 0; color: #334155;"><strong>Total Amount:</strong> ₹{total_amount}</p>
+                </div>
+                <div style="text-align: center; margin: 35px 0;">
+                    <a href="{settings.FRONTEND_URL}/profile" style="background-color: #0070f3; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Track Order</a>
+                </div>
+                <p style="color: #a1a1aa; font-size: 12px; margin: 0; text-align: center;">If you have any questions, reply to this email.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return _send_email(to_email, subject, plain_text, html_content)
+
 def _send_email(to_email: str, subject: str, plain_text: str, html_content: str) -> bool:
     logger.info(f"🚀 [EMAIL OUTGOING] To: {to_email} | Sub: {subject}")
     
-    if not settings.GMAIL_USER or not settings.GMAIL_PASSWORD:
-        logger.error("❌ Missing Gmail credentials in .env")
+    if not settings.BREVO_API_KEY:
+        logger.error("❌ Missing Brevo API Key in .env")
         return False
         
     try:
-        import email.utils
-        msg = MIMEMultipart('alternative')
-        msg['From'] = f"IoTMart Support <{settings.GMAIL_USER}>"
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg['Date'] = email.utils.formatdate(localtime=True)
-        # Fix: Use gmail.com domain to match SMTP origin to reduce spam flag
-        msg['Message-ID'] = email.utils.make_msgid(domain='gmail.com')
-        msg['Reply-To'] = settings.GMAIL_USER
+        import requests
         
-        # Attach both plain and HTML versions to reduce spam likelihood
-        msg.attach(MIMEText(plain_text, 'plain'))
-        msg.attach(MIMEText(html_content, 'html'))
+        url = "https://api.brevo.com/v3/smtp/email"
         
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(settings.GMAIL_USER, settings.GMAIL_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        logger.info("✅ Email sent successfully.")
-        return True
+        payload = {
+            "sender": {
+                "name": "IoTMart Support",
+                "email": settings.GMAIL_USER or "support@iotmart.com"
+            },
+            "to": [
+                {
+                    "email": to_email
+                }
+            ],
+            "subject": subject,
+            "htmlContent": html_content,
+            "textContent": plain_text
+        }
+        
+        headers = {
+            "accept": "application/json",
+            "api-key": settings.BREVO_API_KEY,
+            "content-type": "application/json"
+        }
+        
+        response = requests.post(url, json=payload, headers=headers)
+        
+        if response.status_code in [200, 201, 202]:
+            logger.info("✅ Email sent successfully via Brevo API.")
+            return True
+        else:
+            logger.error(f"❌ Brevo API Error: {response.text}")
+            return False
+            
     except Exception as e:
         logger.error(f"❌ Failed to send email: {e}")
         return False

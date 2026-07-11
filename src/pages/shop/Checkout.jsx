@@ -82,6 +82,8 @@ const Checkout = () => {
     }
   };
 
+  const [createdOrderId, setCreatedOrderId] = useState(null);
+
   const processOrder = async (status, paymentId = "COD") => {
     setLoading(true);
     try {
@@ -102,7 +104,8 @@ const Checkout = () => {
         shipping_method: deliveryOption
       };
 
-      await placeOrder(orderData);
+      const res = await placeOrder(orderData);
+      setCreatedOrderId(res._id || res.id || "Processing");
       setOrderComplete(true);
       onClearCart();
     } catch (error) {
@@ -136,7 +139,8 @@ const Checkout = () => {
           </div>
           <h1 className="heading-page mb-4">Manifest Deployed</h1>
           <p className="text-text-secondary mb-10 text-lg font-medium max-w-md mx-auto">
-            Your hardware components are being packed. Track your shipment in the "My Orders" section.
+            Your hardware components are being packed. Track your shipment in the "My Orders" section.<br/><br/>
+            <span className="text-accent font-bold">Order ID: {createdOrderId}</span>
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button onClick={() => navigate('/profile')} className="btn-premium py-4 text-xs">

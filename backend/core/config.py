@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     SHIPROCKET_PASSWORD: str = ""
     FRONTEND_URL: str = "http://localhost:5173"
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    BREVO_API_KEY: str = ""
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()
