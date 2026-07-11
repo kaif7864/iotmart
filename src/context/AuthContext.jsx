@@ -56,11 +56,11 @@ export const AuthProvider = ({ children }) => {
     if (currencies[code]) setCurrency(currencies[code]);
   };
 
-  const googleLogin = async (credential) => {
+  const googleLogin = async (credential, isSignup = false) => {
     try {
       // Lazy import to avoid circular dependencies if any
       const { loginWithGoogle } = await import('../services/auth.service');
-      const data = await loginWithGoogle(credential);
+      const data = await loginWithGoogle(credential, isSignup);
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user_session', JSON.stringify(data.user));
       

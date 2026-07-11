@@ -9,6 +9,7 @@ const VerifyEmail = () => {
   const token = searchParams.get('token');
   const navigate = useNavigate();
   const [status, setStatus] = useState('verifying'); // verifying, success, error
+  const hasFetched = React.useRef(false);
 
   useEffect(() => {
     if (!token) {
@@ -16,19 +17,30 @@ const VerifyEmail = () => {
       return;
     }
 
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
     const verify = async () => {
       try {
         await apiClient.post('/auth/verify-email', { token });
         setStatus('success');
         toast.success("Email verified successfully!");
         
-        // After 3 seconds, redirect to profile
+        // Update local session so the profile shows Verified instantly
+        const sessionStr = localStorage.getItem('user_session');
+        if (sessionStr) {
+          const user = JSON.parse(sessionStr);
+          user.email_verified = true;
+          localStorage.setItem('user_session', JSON.stringify(user));
+        }
+
+        // After 3 seconds, redirect to profile with a full reload to ensure context updates
         setTimeout(() => {
-          navigate('/profile');
+          window.location.href = '/profile';
         }, 3000);
       } catch (error) {
         setStatus('error');
-        toast.error("Invalid or expired link");
+        toast.error(error.response?.data?.detail || "Invalid or expired link");
       }
     };
 

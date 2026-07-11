@@ -16,7 +16,7 @@ const Login = () => {
   const googleLoginAction = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setIsLoading(true);
-      const result = await googleLogin(tokenResponse.access_token);
+      const result = await googleLogin(tokenResponse.access_token, false);
       setIsLoading(false);
       
       if (result.success) {

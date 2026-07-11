@@ -59,7 +59,7 @@ from core.config import settings
 GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID or "dummy-client-id.apps.googleusercontent.com"
 
 @router.post("/google")
-async def google_login(credential: str = Body(..., embed=True), background_tasks: BackgroundTasks = None):
+async def google_login(credential: str = Body(..., embed=True), isSignup: bool = Body(False, embed=True), background_tasks: BackgroundTasks = None):
     try:
         # Credential here is the Google Access Token returned by useGoogleLogin
         async with httpx.AsyncClient() as client:
@@ -89,6 +89,8 @@ async def google_login(credential: str = Body(..., embed=True), background_tasks
             user["status"] = "active"
         
         if not user:
+            if not isSignup:
+                raise HTTPException(status_code=400, detail="Account not found. Please sign up first.")
             # Create new user automatically
             user_dict = {
                 "email": email,

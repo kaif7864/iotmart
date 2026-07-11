@@ -114,5 +114,19 @@ async def deactivate_account(id: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    await user_repo.update_user(id, {"status": "inactive"})
-    return {"success": True, "message": "Account deactivated successfully"}
+    # Check for pending/active orders
+    active_orders_count = await db.orders.count_documents({
+        "user_id": id,
+        "status": {"$in": ["Pending", "Processing", "Shipped"]}
+    })
+    
+    if active_orders_count > 0:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Deactivation failed: You have {active_orders_count} active/pending order(s). Please cancel them or wait for delivery before deleting your account."
+        )
+        
+    # Delete user permanently instead of just making them inactive
+    await user_repo.collection.delete_one({"_id": ObjectId(id)})
+    
+    return {"success": True, "message": "Account completely deleted successfully"}

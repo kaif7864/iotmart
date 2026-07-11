@@ -109,6 +109,11 @@ const UserProfile = () => {
         toast.success("Password changed successfully!");
         setShowChangePassword(false);
         setPasswordForm({ current: '', new: '', confirm: '' });
+        
+        // Update user context to reflect they now have a custom password
+        const updatedUser = { ...user, has_custom_password: true };
+        setUser(updatedUser);
+        localStorage.setItem('user_session', JSON.stringify(updatedUser));
       }
     } catch (error) {
       toast.error(error.response?.data?.detail || "Failed to change password");
