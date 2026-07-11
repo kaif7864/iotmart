@@ -556,7 +556,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                           </div>
                           
                           <div className="flex flex-wrap gap-4 justify-end">
-                            {order.status === 'Pending' && (
+                            {['Pending', 'Processing', 'Confirmed'].includes(order.status) && (
                               <button
                                 onClick={() => handleUpdateOrderStatus(order._id, 'Cancelled')}
                                 className="btn-outline border-status-danger text-status-danger hover:bg-status-danger hover:text-white px-8 py-4 text-xs rounded-xl transition-all"

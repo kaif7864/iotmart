@@ -95,3 +95,17 @@ async def get_live_tracking(tracking_id: str):
     if result.get("success"):
         return result
     raise HTTPException(status_code=400, detail="Unable to fetch tracking data")
+
+@router.put("/{id}/cancel")
+async def cancel_order(id: str):
+    order = await order_repo.get_order_by_id(id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    if order.get("status") in ["Delivered", "Cancelled"]:
+        raise HTTPException(status_code=400, detail=f"Cannot cancel order with status: {order.get('status')}")
+        
+    result = await order_repo.update_order(id, {"status": "Cancelled"})
+    if result.modified_count:
+        return {"message": "Order cancelled successfully"}
+    raise HTTPException(status_code=500, detail="Failed to cancel order")
