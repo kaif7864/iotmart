@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }) => {
     return [];
   });
   
-  const [currency, setCurrency] = useState({ code: 'INR', symbol: '₹', rate: 83.5 });
+  const [currency, setCurrency] = useState({ code: 'INR', symbol: '₹', rate: 1 });
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Welcome to IoTMart', message: 'Your engineering account is now active.', type: 'info', time: 'Just now', read: false },
     { id: 2, title: 'Device Alert', message: 'Greenhouse Node 2 reported high humidity.', type: 'warning', time: '5m ago', read: false },
@@ -42,13 +42,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const currencies = {
-    INR: { code: 'INR', symbol: '₹', rate: 83.5 },
-    USD: { code: 'USD', symbol: '$', rate: 1 },
-    EUR: { code: 'EUR', symbol: '€', rate: 0.92 },
+    INR: { code: 'INR', symbol: '₹', rate: 1 },
+    USD: { code: 'USD', symbol: '$', rate: 1/83.5 },
+    EUR: { code: 'EUR', symbol: '€', rate: (1/83.5) * 0.92 },
   };
 
-  const formatPrice = (usdPrice) => {
-    const converted = usdPrice * currency.rate;
+  const formatPrice = (basePriceInr) => {
+    const converted = basePriceInr * currency.rate;
     return `${currency.symbol}${converted.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 

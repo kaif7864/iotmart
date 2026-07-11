@@ -33,9 +33,9 @@ const Checkout = () => {
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryCharges = {
-    'STANDARD': subtotal > 50 ? 0 : 5,
-    'EXPRESS': 15,
-    'PRIORITY': 25
+    'STANDARD': subtotal > 500 ? 0 : 50,
+    'EXPRESS': 150,
+    'PRIORITY': 250
   };
   const shipping = deliveryCharges[deliveryOption];
   const tax = subtotal * 0.18;
@@ -51,6 +51,7 @@ const Checkout = () => {
     }
     setLoading(true);
     try {
+      // total is in base currency (INR). Cashfree expects INR.
       const res = await apiClient.post('/payments/cashfree/create-session', {
         order_amount: total,
         customer_id: user?._id || "guest",
