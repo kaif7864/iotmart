@@ -30,7 +30,7 @@ const INDIAN_STATES = [
 
 const UserProfile = () => {
   const { handleAddToCart } = useCart();
-  const { user, logout, addresses, addAddress, removeAddress, formatPrice, currency } = useAuth();
+  const { user, setUser, logout, addresses, addAddress, removeAddress, formatPrice, currency } = useAuth();
   const { wishlist, toggleWishlist } = useWishlist();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,9 +123,10 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
       setIsSavingProfile(true);
       if (!user?._id) throw new Error("User ID missing");
       const res = await updateUserProfile(user._id, profileData);
-      if (res.success) {
+      if (res.success && res.user) {
+        setUser(res.user);
+        localStorage.setItem('user_session', JSON.stringify(res.user));
         toast.success("Profile successfully updated");
-        setTimeout(() => window.location.reload(), 1000);
       }
     } catch (error) {
       toast.error(error.message || "Failed to update profile");

@@ -57,7 +57,8 @@ async def update_user_profile(id: str, profile: dict = Body(...)):
             "phone": profile.get("phone", "")
         }}
     )
-    return {"success": True, "message": "Profile updated"}
+    user = await db.users.find_one({"_id": ObjectId(id)})
+    return {"success": True, "message": "Profile updated", "user": user_helper(user)}
 
 @router.post("/{id}/wishlist")
 async def toggle_wishlist(id: str, product_id: str = Body(..., embed=True)):
