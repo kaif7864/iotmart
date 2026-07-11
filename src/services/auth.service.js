@@ -15,12 +15,22 @@ export const loginWithGoogle = async (credential) => {
   return response.data;
 };
 
-export const sendVerification = async (email) => {
-  const response = await apiClient.post('/auth/send-verification', { email });
+export const sendVerification = async (email, type) => {
+  const response = await apiClient.post('/auth/send-verification', { email, type });
   return response.data;
 };
 
 export const verifyMobile = async (email, otp) => {
   const response = await apiClient.post('/auth/verify-mobile', { email, otp });
+  return response.data;
+};
+
+export const updateIdentity = async (user_id, email, phone) => {
+  const response = await apiClient.put('/auth/update-identity', { user_id, email, phone });
+  return response.data;
+};
+
+export const forgotPassword = async (email) => {
+  const response = await apiClient.post('/auth/forgot-password', { email });
   return response.data;
 };

@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { isValidEmail } from '../../utils/validators';
 import { handleError } from '../../utils/errorHandler';
 import { useGoogleLogin } from '@react-oauth/google';
+import apiClient from '../../services/api.client';
 
 const Login = () => {
   const { login, googleLogin } = useAuth();
@@ -35,6 +36,25 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!isValidEmail(email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await apiClient.post('/auth/forgot-password', { email });
+      toast.success(res.data.message || "Reset link sent!");
+      setIsForgotPassword(false);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to send reset link");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e, demoRole = null) => {
     if (e) e.preventDefault();
@@ -109,7 +129,12 @@ const Login = () => {
             />
           </div>
           <div className="relative">
-            <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Password</label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest">Password</label>
+              <button type="button" onClick={() => setIsForgotPassword(true)} className="text-[10px] font-black text-accent uppercase tracking-widest hover:underline">
+                Forgot Password?
+              </button>
+            </div>
             <div className="relative">
               <input 
                 type={showPassword ? "text" : "password"} 
@@ -117,7 +142,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-5 pr-12 py-4 bg-app-bg border border-border-main rounded-xl text-sm font-bold focus:border-accent outline-none transition-all"
                 placeholder="••••••••"
-                required
+                required={!isForgotPassword}
               />
               <button 
                 type="button"
@@ -138,6 +163,33 @@ const Login = () => {
             </span>
           </button>
         </form>
+
+        {isForgotPassword && (
+          <div className="fixed inset-0 bg-app-bg/80 backdrop-blur-sm z-[999] flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-10 rounded-[32px] max-w-md w-full relative">
+              <button onClick={() => setIsForgotPassword(false)} className="absolute top-6 right-6 text-text-muted hover:text-text-primary text-xl">&times;</button>
+              <h2 className="heading-section mb-2 text-center">Reset Password</h2>
+              <p className="text-xs text-text-muted text-center mb-8">Enter your email and we'll send a link to reset your password.</p>
+              
+              <form onSubmit={handleForgotPassword} className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Email Address</label>
+                  <input 
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-5 py-4 bg-app-bg border border-border-main rounded-xl text-sm font-bold focus:border-accent outline-none transition-all"
+                    placeholder="engineer@iotmart.com"
+                    required
+                  />
+                </div>
+                <button disabled={isLoading} className="w-full btn-premium py-4">
+                  {isLoading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
 
         <div className="relative mb-8">
           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border-main"></div></div>

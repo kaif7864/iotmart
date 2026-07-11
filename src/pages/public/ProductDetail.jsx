@@ -4,7 +4,7 @@ import {
   ArrowLeft, Star, ShoppingCart, CheckCircle, Package, PackageX, 
   Truck, Shield, RotateCcw, Loader2, MessageSquare, Plus, Upload, 
   Camera, Image as ImageIcon, Scale, Play, Activity, Cpu, Zap, 
-  Thermometer, Droplets, Info, ExternalLink, X, Wifi, CheckCircle
+  Thermometer, Droplets, Info, ExternalLink, X, Wifi
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../../components/ui/ProductCard';

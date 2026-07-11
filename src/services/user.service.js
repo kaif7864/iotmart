@@ -34,3 +34,13 @@ export const updateUserProfile = async (userId, profileData) => {
   const response = await apiClient.put(`/users/${userId}/profile`, profileData);
   return response.data;
 };
+
+export const changeUserPassword = async (id, current_password, new_password) => {
+  const response = await apiClient.put(`/users/${id}/password`, { current_password, new_password });
+  return response.data;
+};
+
+export const deactivateAccount = async (id) => {
+  const response = await apiClient.put(`/users/${id}/deactivate`);
+  return response.data;
+};

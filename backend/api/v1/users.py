@@ -19,7 +19,8 @@ def user_helper(user) -> dict:
         "wishlist": user.get("wishlist", []),
         "addresses": user.get("addresses", []),
         "email_verified": user.get("email_verified", False),
-        "mobile_verified": user.get("mobile_verified", False)
+        "mobile_verified": user.get("mobile_verified", False),
+        "has_custom_password": user.get("has_custom_password", True)
     }
 
 @router.get("/", response_model=List[dict])
@@ -96,3 +97,44 @@ async def remove_address(id: str, address_id: str):
         {"$pull": {"addresses": {"id": address_id}}}
     )
     return {"message": "Address removed"}
+
+from core.security import verify_password, get_password_hash
+
+@router.put("/{id}/password")
+async def change_password(id: str, payload: dict = Body(...)):
+    current_password = payload.get("current_password")
+    new_password = payload.get("new_password")
+    
+    if not new_password:
+        raise HTTPException(status_code=400, detail="Missing new password")
+        
+    user = await db.users.find_one({"_id": ObjectId(id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    has_custom = user.get("has_custom_password", True)
+    
+    if has_custom:
+        if not current_password:
+            raise HTTPException(status_code=400, detail="Missing current password")
+        if not verify_password(current_password, user.get("password", "")):
+            raise HTTPException(status_code=400, detail="Incorrect current password")
+        
+    hashed_password = get_password_hash(new_password)
+    await db.users.update_one(
+        {"_id": ObjectId(id)},
+        {"$set": {"password": hashed_password, "has_custom_password": True}}
+    )
+    return {"success": True, "message": "Password updated successfully"}
+
+@router.put("/{id}/deactivate")
+async def deactivate_account(id: str):
+    user = await db.users.find_one({"_id": ObjectId(id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    await db.users.update_one(
+        {"_id": ObjectId(id)},
+        {"$set": {"status": "inactive"}}
+    )
+    return {"success": True, "message": "Account deactivated successfully"}

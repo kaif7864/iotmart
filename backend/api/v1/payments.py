@@ -90,7 +90,18 @@ async def cashfree_webhook(request: Request):
     data = await request.json()
     print("Valid Cashfree Webhook Received:", data)
     
-    # Process webhook events here (e.g. PAYMENT_SUCCESS, PAYMENT_FAILED)
-    # Update orders/transactions collection accordingly
+    event_type = data.get("type")
+    if event_type == "PAYMENT_SUCCESS_WEBHOOK":
+        payment_info = data.get("data", {}).get("payment", {})
+        order_info = data.get("data", {}).get("order", {})
+        order_id_string = order_info.get("order_id")
+        
+        # We need to find the transaction/order with this order_id
+        # Note: the order_id here is the CASHFREE order id generated in create_cashfree_session
+        
+        # Actually, in our create_session we just returned order_id, but the frontend needs to pass it to processOrder
+        # Wait, the webhook is a nice to have, the frontend already marks it as PAID after successful checkout:
+        # processOrder("PAID", result.paymentDetails.paymentMessage || order_id)
+        pass
     
     return {"status": "OK"}

@@ -3,11 +3,11 @@ import {
   User, Package, MapPin, Heart, LogOut, 
   ChevronRight, ExternalLink, Shield, Bell, 
   Settings, Clock, CreditCard, ChevronDown, Plus, 
-  Trash2, Eye, LayoutDashboard, History, Download, Loader2, CheckCircle2, X, Ticket, Gift, ShieldCheck
+  Trash2, Eye, LayoutDashboard, History, Download, Loader2, CheckCircle2, X, Ticket, Gift, ShieldCheck, Mail, Phone
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getOrdersByUser, getLiveTracking, updateUserProfile, sendVerification, verifyMobile } from '../../services/api';
+import { getOrdersByUser, getLiveTracking, updateUserProfile, sendVerification, verifyMobile, changeUserPassword, updateOrderStatus, updateIdentity, forgotPassword, deactivateAccount } from '../../services/api';
 import toast from 'react-hot-toast';
 import OrderTimeline from '../../components/ui/OrderTimeline';
 import { generateInvoice } from '../../utils/generateInvoice';
@@ -54,23 +54,97 @@ const UserProfile = () => {
   const [trackingLoading, setTrackingLoading] = useState(false);
 
   // Verification State
-  const [showOtpInput, setShowOtpInput] = useState(false);
   const [otp, setOtp] = useState('');
-  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [isSendingMobile, setIsSendingMobile] = useState(false);
+  const [showMobileOtpInput, setShowMobileOtpInput] = useState(false);
+  const [emailLinkSent, setEmailLinkSent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  
+  const [editIdentityMode, setEditIdentityMode] = useState(null); // 'email' | 'mobile' | null
+  const [editIdentityValue, setEditIdentityValue] = useState('');
+  const [isUpdatingIdentity, setIsUpdatingIdentity] = useState(false);
 
-  const handleSendVerification = async () => {
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [deactivateAgreed, setDeactivateAgreed] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+
+  // Password State
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isSendingResetLink, setIsSendingResetLink] = useState(false);
+
+  const handleSendResetLink = async () => {
     try {
-      setIsSendingCode(true);
-      const res = await sendVerification(user.email);
+      setIsSendingResetLink(true);
+      const res = await forgotPassword(user.email);
       if (res.success) {
-        toast.success("Verification codes sent to email & mobile");
-        setShowOtpInput(true);
+        toast.success("Password reset link sent to your email!");
       }
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to send code");
+      toast.error("Failed to send reset link");
     } finally {
-      setIsSendingCode(false);
+      setIsSendingResetLink(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (passwordForm.new !== passwordForm.confirm) {
+      toast.error("New passwords do not match!");
+      return;
+    }
+    if (passwordForm.new.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      const res = await changeUserPassword(user._id, passwordForm.current, passwordForm.new);
+      if (res.success) {
+        toast.success("Password changed successfully!");
+        setShowChangePassword(false);
+        setPasswordForm({ current: '', new: '', confirm: '' });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to change password");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleSendEmailVerification = async () => {
+    try {
+      setIsSendingEmail(true);
+      const res = await sendVerification(user.email, 'email');
+      if (res.success) {
+        toast.success("Verification link sent to email");
+        setEmailLinkSent(true);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to send email");
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleSendMobileVerification = async () => {
+    try {
+      if (!user?.phone) {
+        toast.error("Please add a mobile number in My Profile first");
+        return;
+      }
+      setIsSendingMobile(true);
+      const res = await sendVerification(user.email, 'mobile');
+      if (res.success) {
+        toast.success("OTP sent to mobile");
+        setShowMobileOtpInput(true);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to send SMS");
+    } finally {
+      setIsSendingMobile(false);
     }
   };
 
@@ -80,7 +154,7 @@ const UserProfile = () => {
       const res = await verifyMobile(user.email, otp);
       if (res.success) {
         toast.success("Mobile verified successfully!");
-        setShowOtpInput(false);
+        setShowMobileOtpInput(false);
         const updatedUser = { ...user, mobile_verified: true };
         setUser(updatedUser);
         localStorage.setItem('user_session', JSON.stringify(updatedUser));
@@ -89,6 +163,54 @@ const UserProfile = () => {
       toast.error(error.response?.data?.detail || "Invalid OTP");
     } finally {
       setIsVerifying(false);
+    }
+  };
+
+  const handleDeactivateAccount = async () => {
+    if (!deactivateAgreed) return;
+    try {
+      setIsDeactivating(true);
+      const res = await deactivateAccount(user._id);
+      if (res.success) {
+        toast.success("Account deactivated successfully. Logging you out...");
+        setShowDeactivateModal(false);
+        setTimeout(() => {
+          logout();
+        }, 1500);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to deactivate account");
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
+
+  const handleUpdateIdentity = async (type) => {
+    if (!editIdentityValue.trim()) return;
+    try {
+      setIsUpdatingIdentity(true);
+      const emailParam = type === 'email' ? editIdentityValue : user.email;
+      const phoneParam = type === 'mobile' ? editIdentityValue : user.phone;
+      
+      const res = await updateIdentity(user._id, emailParam, phoneParam);
+      if (res.success) {
+        toast.success(`${type === 'email' ? 'Email' : 'Mobile'} updated! Sending verification...`);
+        setUser(res.user);
+        localStorage.setItem('user_session', JSON.stringify(res.user));
+        setEditIdentityMode(null);
+        setEditIdentityValue('');
+        
+        // Auto-trigger verification
+        if (type === 'email') {
+          handleSendEmailVerification();
+        } else {
+          handleSendMobileVerification();
+        }
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update identity");
+    } finally {
+      setIsUpdatingIdentity(false);
     }
   };
 
@@ -103,6 +225,21 @@ const UserProfile = () => {
       console.error("Tracking error:", error);
     } finally {
       setTrackingLoading(false);
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    if (!window.confirm(`Are you sure you want to ${newStatus === 'Cancelled' ? 'cancel this order' : 'request a return'}?`)) {
+      return;
+    }
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      toast.success(newStatus === 'Cancelled' ? 'Order Cancelled' : 'Return Requested');
+      
+      // Update local state
+      setOrders(orders.map(o => o._id === orderId ? { ...o, status: newStatus } : o));
+    } catch (error) {
+      toast.error(error.response?.data?.detail || `Failed to update order status`);
     }
   };
 
@@ -370,6 +507,22 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                           </div>
                           
                           <div className="flex flex-wrap gap-4 justify-end">
+                            {order.status === 'Pending' && (
+                              <button
+                                onClick={() => handleUpdateOrderStatus(order._id, 'Cancelled')}
+                                className="btn-outline border-status-danger text-status-danger hover:bg-status-danger hover:text-white px-8 py-4 text-xs rounded-xl transition-all"
+                              >
+                                Cancel Order
+                              </button>
+                            )}
+                            {order.status === 'Delivered' && (
+                              <button
+                                onClick={() => handleUpdateOrderStatus(order._id, 'Return Requested')}
+                                className="btn-outline border-status-warning text-status-warning hover:bg-status-warning hover:text-black px-8 py-4 text-xs rounded-xl transition-all"
+                              >
+                                Request Return
+                              </button>
+                            )}
                             {order.tracking_id && (
                               <button
                                 onClick={() => handleTrackShipment(order.tracking_id)}
@@ -609,25 +762,16 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <CreditCard className="h-6 w-6 text-accent" /> Payment Methods
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-                      <div className="p-6 bg-surface-dark rounded-2xl text-text-inverse relative overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all">
-                        <div className="absolute -right-10 -top-10 w-32 h-32 bg-card-bg/5 rounded-full" />
-                        <div className="flex justify-between items-start mb-8 relative z-10">
-                          <CreditCard className="h-8 w-8 opacity-80" />
-                          <span className="label-caps bg-card-bg/10 px-3 py-1 rounded-lg">VISA</span>
-                        </div>
-                        <div className="relative z-10">
-                          <p className="font-mono text-lg tracking-widest mb-2 opacity-90">•••• •••• •••• 4242</p>
-                          <div className="flex justify-between items-center text-xs opacity-70">
-                            <span className="uppercase font-bold tracking-widest">{user?.name}</span>
-                            <span>12/28</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <button className="p-6 border-2 border-dashed border-border-main rounded-2xl flex flex-col items-center justify-center text-text-muted hover:border-accent hover:text-accent hover:bg-accent-light transition-all min-h-[160px]">
-                        <Plus className="h-8 w-8 mb-2" />
-                        <span className="label-caps">Add New Card</span>
+                    <div className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-border-main rounded-2xl text-text-muted bg-surface/50">
+                      <CreditCard className="h-12 w-12 mb-4 opacity-20" />
+                      <p className="font-bold text-text-primary mb-1">No saved payment methods</p>
+                      <p className="text-xs text-center max-w-sm mb-6">You haven't saved any credit/debit cards yet. Cards are saved securely after your first purchase.</p>
+                      <button 
+                        type="button"
+                        onClick={() => toast('Payment gateway integration pending...', { icon: '🚧' })}
+                        className="btn-outline py-3 px-6 text-[10px]"
+                      >
+                        Add New Card
                       </button>
                     </div>
                   </div>
@@ -650,76 +794,159 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                         </div>
                         
                         <div className="space-y-4">
-                          <div className="flex items-center justify-between p-4 bg-app-bg rounded-xl border border-border-subtle">
-                            <div>
-                              <p className="font-bold text-text-primary text-sm">Email Address</p>
-                              <p className="text-xs text-text-muted">{user?.email}</p>
-                            </div>
-                            {user?.email_verified ? (
-                              <span className="badge-success"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
-                            ) : (
-                              <span className="badge-warning text-status-warning bg-status-warning/10 px-3 py-1 rounded-sm text-[10px] font-black uppercase tracking-widest">Pending</span>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center justify-between p-4 bg-app-bg rounded-xl border border-border-subtle">
-                            <div>
-                              <p className="font-bold text-text-primary text-sm">Mobile Number</p>
-                              <p className="text-xs text-text-muted">{user?.phone || 'Not provided'}</p>
-                            </div>
-                            {user?.mobile_verified ? (
-                              <span className="badge-success"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
-                            ) : (
-                              <span className="badge-warning text-status-warning bg-status-warning/10 px-3 py-1 rounded-sm text-[10px] font-black uppercase tracking-widest">Pending</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {(!user?.email_verified || !user?.mobile_verified) && (
-                          <div className="mt-6 pt-6 border-t border-border-subtle">
-                            {!showOtpInput ? (
-                              <button 
-                                onClick={handleSendVerification}
-                                disabled={isSendingCode}
-                                className="w-full py-4 btn-premium text-[10px]"
-                              >
-                                {isSendingCode ? 'Sending Codes...' : 'Verify Now'}
-                              </button>
-                            ) : (
-                              <div className="space-y-4">
-                                <p className="text-xs text-text-muted text-center">Check your email for the verification link. Enter the 6-digit SMS OTP below to verify your mobile number.</p>
-                                <div className="flex gap-4">
-                                  <input 
-                                    type="text" 
-                                    placeholder="Enter SMS OTP" 
-                                    value={otp}
-                                    onChange={(e) => setOtp(e.target.value)}
-                                    className="field-input flex-grow text-center tracking-[0.5em] font-mono text-lg"
-                                    maxLength={6}
-                                  />
+                          {/* Email Block */}
+                          <div className="flex flex-col gap-3 p-4 bg-app-bg rounded-xl border border-border-subtle">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-bold text-text-primary text-sm">Email Address</p>
+                                {editIdentityMode === 'email' ? (
+                                  <div className="mt-2 flex gap-2">
+                                    <input type="email" value={editIdentityValue} onChange={(e) => setEditIdentityValue(e.target.value)} className="field-input py-2 px-3 text-xs" />
+                                    <button disabled={isUpdatingIdentity} onClick={() => handleUpdateIdentity('email')} className="btn-premium px-4 py-2 text-[10px]">Save</button>
+                                    <button disabled={isUpdatingIdentity} onClick={() => setEditIdentityMode(null)} className="btn-outline px-4 py-2 text-[10px]">Cancel</button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-3">
+                                    <p className="text-xs text-text-muted">{user?.email}</p>
+                                    <button onClick={() => { setEditIdentityMode('email'); setEditIdentityValue(user?.email || ''); }} className="text-[10px] text-accent uppercase font-black hover:underline">Change</button>
+                                  </div>
+                                )}
+                              </div>
+                              {editIdentityMode !== 'email' && (
+                                user?.email_verified ? (
+                                  <span className="badge-success"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
+                                ) : (
                                   <button 
-                                    onClick={handleVerifyMobile}
-                                    disabled={isVerifying || otp.length !== 6}
-                                    className="px-8 btn-premium"
+                                    onClick={handleSendEmailVerification}
+                                    disabled={isSendingEmail}
+                                    className="px-4 py-2 bg-accent text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-accent-hover transition-all"
                                   >
-                                    {isVerifying ? '...' : 'Verify'}
+                                    {isSendingEmail ? 'Sending...' : 'Verify Email'}
                                   </button>
-                                </div>
+                                )
+                              )}
+                            </div>
+                            {emailLinkSent && !user?.email_verified && (
+                              <div className="p-3 bg-status-info/10 border border-status-info/20 rounded-lg text-xs">
+                                <p className="text-status-info font-bold mb-1"><Mail className="h-3 w-3 inline mr-1"/>Link Sent!</p>
+                                <p className="text-text-muted">Please check your inbox and click the link to verify.</p>
                               </div>
                             )}
                           </div>
-                        )}
+                          
+                          {/* Mobile Block */}
+                          <div className="flex flex-col gap-3 p-4 bg-app-bg rounded-xl border border-border-subtle">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-bold text-text-primary text-sm">Mobile Number</p>
+                                {editIdentityMode === 'mobile' ? (
+                                  <div className="mt-2 flex gap-2">
+                                    <input type="text" value={editIdentityValue} onChange={(e) => setEditIdentityValue(e.target.value)} placeholder="+91..." className="field-input py-2 px-3 text-xs" />
+                                    <button disabled={isUpdatingIdentity} onClick={() => handleUpdateIdentity('mobile')} className="btn-premium px-4 py-2 text-[10px]">Save</button>
+                                    <button disabled={isUpdatingIdentity} onClick={() => setEditIdentityMode(null)} className="btn-outline px-4 py-2 text-[10px]">Cancel</button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-3">
+                                    <p className="text-xs text-text-muted">{user?.phone || 'Not provided'}</p>
+                                    <button onClick={() => { setEditIdentityMode('mobile'); setEditIdentityValue(user?.phone || ''); }} className="text-[10px] text-accent uppercase font-black hover:underline">{user?.phone ? 'Change' : 'Add'}</button>
+                                  </div>
+                                )}
+                              </div>
+                              {editIdentityMode !== 'mobile' && (
+                                user?.mobile_verified ? (
+                                  <span className="badge-success"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
+                                ) : (
+                                  <button 
+                                    onClick={!user?.phone ? () => { setEditIdentityMode('mobile'); setEditIdentityValue(''); } : handleSendMobileVerification}
+                                    disabled={isSendingMobile}
+                                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded transition-all ${!user?.phone ? 'bg-status-warning text-black hover:bg-yellow-500' : 'bg-accent text-white hover:bg-accent-hover'}`}
+                                  >
+                                    {!user?.phone ? 'Add Mobile' : isSendingMobile ? 'Sending...' : 'Verify Mobile'}
+                                  </button>
+                                )
+                              )}
+                            </div>
+                            {showMobileOtpInput && !user?.mobile_verified && (
+                              <div className="p-4 bg-surface rounded-lg border border-border-subtle mt-2 flex gap-3">
+                                <input 
+                                  type="text" 
+                                  placeholder="Enter 6-digit OTP" 
+                                  value={otp}
+                                  onChange={(e) => setOtp(e.target.value)}
+                                  className="field-input flex-grow text-center tracking-[0.5em] font-mono text-sm py-2"
+                                  maxLength={6}
+                                />
+                                <button 
+                                  onClick={handleVerifyMobile}
+                                  disabled={isVerifying || otp.length !== 6}
+                                  className="px-6 btn-premium py-2 text-xs"
+                                >
+                                  {isVerifying ? '...' : 'Confirm'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 gap-6">
-                        <div className="card p-6 rounded-2xl flex items-center justify-between">
-                          <div>
-                            <p className="font-black text-text-primary uppercase tracking-tight mb-1">Password</p>
-                            <p className="text-xs text-text-muted">Last changed 3 months ago</p>
+                        <div className="card p-6 rounded-2xl flex flex-col gap-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-black text-text-primary uppercase tracking-tight mb-1">Password</p>
+                              <p className="text-xs text-text-muted">Manage your account password</p>
+                            </div>
+                            <button 
+                              type="button" 
+                              onClick={() => setShowChangePassword(!showChangePassword)}
+                              className="btn-outline px-6 py-3 text-[10px]"
+                            >
+                              {showChangePassword ? 'Cancel' : 'Update'}
+                            </button>
                           </div>
-                          <button type="button" className="btn-outline px-6 py-3 text-[10px]">
-                            Update
-                          </button>
+                          
+                          <AnimatePresence>
+                            {showChangePassword && (
+                              <motion.form 
+                                initial={{ opacity: 0, height: 0 }} 
+                                animate={{ opacity: 1, height: 'auto' }} 
+                                exit={{ opacity: 0, height: 0 }}
+                                onSubmit={handleChangePassword}
+                                className="space-y-4 pt-4 border-t border-border-subtle overflow-hidden"
+                              >
+                                {user?.has_custom_password !== false && (
+                                  <div>
+                                    <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] mb-2 block">Current Password</label>
+                                    <input type="password" required value={passwordForm.current} onChange={(e) => setPasswordForm({...passwordForm, current: e.target.value})} className="field-input" placeholder="••••••••" />
+                                  </div>
+                                )}
+                                <div>
+                                  <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] mb-2 block">New Password</label>
+                                  <input type="password" required value={passwordForm.new} onChange={(e) => setPasswordForm({...passwordForm, new: e.target.value})} className="field-input" placeholder="••••••••" />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] mb-2 block">Confirm New Password</label>
+                                  <input type="password" required value={passwordForm.confirm} onChange={(e) => setPasswordForm({...passwordForm, confirm: e.target.value})} className="field-input" placeholder="••••••••" />
+                                </div>
+                                <div className="pt-2">
+                                  <button type="submit" disabled={isChangingPassword} className="btn-premium px-8 py-3 text-xs">
+                                    {isChangingPassword ? 'Updating...' : 'Save Password'}
+                                  </button>
+                                </div>
+                                <div className="pt-2 border-t border-border-subtle mt-4">
+                                  <p className="text-xs text-text-muted mb-2">Logged in via Google or forgot your current password?</p>
+                                  <button 
+                                    type="button" 
+                                    onClick={handleSendResetLink}
+                                    disabled={isSendingResetLink}
+                                    className="text-[10px] text-accent uppercase font-black hover:underline"
+                                  >
+                                    {isSendingResetLink ? 'Sending Link...' : 'Send Reset Link to Email'}
+                                  </button>
+                                </div>
+                              </motion.form>
+                            )}
+                          </AnimatePresence>
                         </div>
                         <div className="p-6 border border-status-success/30 rounded-2xl bg-status-success-bg flex items-center justify-between">
                           <div>
@@ -738,7 +965,11 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                       <div className="pt-8 mt-8 border-t border-border-main">
                         <h4 className="text-lg font-black text-status-danger mb-4 uppercase tracking-tighter">Danger Zone</h4>
                         <p className="text-text-muted text-sm mb-6 leading-relaxed">Deactivating your account will remove all your data, order history, and saved addresses permanently. This action cannot be undone.</p>
-                        <button type="button" className="px-8 py-4 bg-status-danger-bg text-status-danger rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-status-danger hover:text-text-inverse transition-all border border-status-danger/20">
+                        <button 
+                          type="button" 
+                          onClick={() => { setShowDeactivateModal(true); setDeactivateAgreed(false); }}
+                          className="px-8 py-4 bg-status-danger-bg text-status-danger rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-status-danger hover:text-text-inverse transition-all border border-status-danger/20"
+                        >
                           Deactivate Account
                         </button>
                       </div>
@@ -747,27 +978,78 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                 </motion.div>
               )}
 
+              {/* Deactivate Account Modal */}
+              <AnimatePresence>
+                {showDeactivateModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                      className="bg-app-bg w-full max-w-md rounded-[32px] border border-status-danger/30 overflow-hidden shadow-2xl"
+                    >
+                      <div className="bg-status-danger/10 p-6 flex flex-col items-center justify-center text-center">
+                        <div className="h-16 w-16 bg-status-danger/20 rounded-full flex items-center justify-center text-status-danger mb-4">
+                          <X className="h-8 w-8" />
+                        </div>
+                        <h3 className="text-xl font-black text-text-primary uppercase tracking-tight">Deactivate Account</h3>
+                      </div>
+                      
+                      <div className="p-8 space-y-6">
+                        <p className="text-sm text-text-muted text-center leading-relaxed">
+                          This is a permanent action. You will lose access to all your orders, wishlist, and profile information. Are you absolutely sure?
+                        </p>
+                        
+                        <label className="flex items-start gap-3 cursor-pointer p-4 border border-border-subtle rounded-xl hover:bg-surface transition-all">
+                          <input 
+                            type="checkbox" 
+                            checked={deactivateAgreed}
+                            onChange={(e) => setDeactivateAgreed(e.target.checked)}
+                            className="mt-1 h-4 w-4 rounded border-border-strong text-status-danger focus:ring-status-danger bg-app-bg" 
+                          />
+                          <span className="text-xs text-text-secondary leading-tight">
+                            I understand that deactivating my account is permanent and my data will be removed.
+                          </span>
+                        </label>
+
+                        <div className="flex gap-3 pt-2">
+                          <button 
+                            onClick={() => setShowDeactivateModal(false)}
+                            className="flex-1 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-text-secondary bg-surface hover:bg-surface-hover transition-all border border-border-subtle"
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            onClick={handleDeactivateAccount}
+                            disabled={!deactivateAgreed || isDeactivating}
+                            className={`flex-1 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${!deactivateAgreed ? 'bg-status-danger/30 text-white/50 cursor-not-allowed' : 'bg-status-danger text-white hover:bg-red-600 shadow-lg shadow-status-danger/25'}`}
+                          >
+                            {isDeactivating ? 'Deactivating...' : 'Confirm'}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
+
               {activeTab === 'coupons' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
                   <div className="card rounded-[32px] p-10">
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <Ticket className="h-6 w-6 text-accent" /> My Coupons
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-                      <div className="p-6 border-2 border-dashed border-status-success/30 bg-status-success-bg rounded-2xl flex items-center justify-between">
-                        <div>
-                          <p className="font-black text-status-success uppercase tracking-tight text-lg mb-1">IOTMART10</p>
-                          <p className="text-xs text-status-success/80 font-medium">10% off your entire order</p>
-                        </div>
-                        <span className="badge-success">Active</span>
-                      </div>
-                      <div className="p-6 border-2 border-dashed border-border-main bg-surface rounded-2xl flex items-center justify-between opacity-50">
-                        <div>
-                          <p className="font-black text-text-secondary uppercase tracking-tight text-lg mb-1">WELCOME5</p>
-                          <p className="text-xs text-text-muted font-medium">Flat 5% discount (Used)</p>
-                        </div>
-                        <span className="badge-default">Expired</span>
-                      </div>
+                    <div className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-border-main rounded-2xl text-text-muted bg-surface/50 max-w-2xl">
+                      <Ticket className="h-12 w-12 mb-4 opacity-20" />
+                      <p className="font-bold text-text-primary mb-1">No coupons available</p>
+                      <p className="text-xs text-center max-w-sm mb-6">You don't have any active coupons or discount codes at the moment. Keep shopping to earn rewards!</p>
+                      <button 
+                        type="button"
+                        onClick={() => toast('Coupon redemption is coming soon!', { icon: '🎟️' })}
+                        className="btn-outline py-3 px-6 text-[10px]"
+                      >
+                        Redeem a Code
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -781,7 +1063,11 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                     </div>
                     <h3 className="heading-section mb-2">No Gift Cards</h3>
                     <p className="text-text-muted max-w-sm mb-8">You don't have any active gift cards. Purchase one for a friend or redeem a code below.</p>
-                    <button className="btn-premium py-4 text-[10px] px-8">
+                    <button 
+                      type="button"
+                      onClick={() => toast('Gift cards feature is coming soon!', { icon: '🎁' })}
+                      className="btn-premium py-4 text-[10px] px-8"
+                    >
                       Redeem Code
                     </button>
                   </div>

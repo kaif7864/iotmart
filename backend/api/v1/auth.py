@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Body, Request
 from core.database import db
 from schemas.user import UserCreate
 from core.security import get_password_hash, verify_password, create_access_token
+from bson import ObjectId
 
 router = APIRouter()
 
@@ -21,8 +22,8 @@ async def signup(user: UserCreate):
     
     # Trigger Welcome Email
     try:
-        from services.notification_engine import notify
-        notify.send_welcome_email(user.first_name, user.email)
+        from services.email_service import send_welcome_email
+        send_welcome_email(user.first_name, user.email)
     except Exception as e:
         print(f"Failed to send welcome email: {e}")
         
@@ -33,6 +34,11 @@ async def login(email: str = Body(...), password: str = Body(...)):
     user = await db.users.find_one({"email": email})
     if not user:
         raise HTTPException(status_code=400, detail="Invalid credentials")
+        
+    if user.get("status") == "inactive":
+        # Auto-reactivate account
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"status": "active"}})
+        user["status"] = "active"
     
     if not verify_password(password, user["password"]):
         raise HTTPException(status_code=400, detail="Invalid credentials")
@@ -52,7 +58,8 @@ async def login(email: str = Body(...), password: str = Body(...)):
             "wishlist": user.get("wishlist", []),
             "addresses": user.get("addresses", []),
             "email_verified": user.get("email_verified", False),
-            "mobile_verified": user.get("mobile_verified", False)
+            "mobile_verified": user.get("mobile_verified", False),
+            "has_custom_password": user.get("has_custom_password", True)
         }
     }
 
@@ -88,6 +95,11 @@ async def google_login(credential: str = Body(..., embed=True)):
         # Check if user already exists
         user = await db.users.find_one({"email": email})
         
+        if user and user.get("status") == "inactive":
+            # Auto-reactivate
+            await db.users.update_one({"_id": user["_id"]}, {"$set": {"status": "active"}})
+            user["status"] = "active"
+        
         if not user:
             # Create new user automatically
             user_dict = {
@@ -99,15 +111,16 @@ async def google_login(credential: str = Body(..., embed=True)):
                 "status": "active",
                 "profile_picture": picture,
                 "wishlist": [],
-                "addresses": []
+                "addresses": [],
+                "has_custom_password": False
             }
             result = await db.users.insert_one(user_dict)
             user = await db.users.find_one({"_id": result.inserted_id})
             
             # Trigger Welcome Email
             try:
-                from services.notification_engine import notify
-                notify.send_welcome_email(user_dict["first_name"], email)
+                from services.email_service import send_welcome_email
+                send_welcome_email(user.get("first_name", ""), user["email"])
             except Exception as e:
                 pass
                 
@@ -128,7 +141,8 @@ async def google_login(credential: str = Body(..., embed=True)):
                 "addresses": user.get("addresses", []),
                 "profile_picture": user.get("profile_picture", ""),
                 "email_verified": user.get("email_verified", False),
-                "mobile_verified": user.get("mobile_verified", False)
+                "mobile_verified": user.get("mobile_verified", False),
+                "has_custom_password": user.get("has_custom_password", False)
             }
         }
         
@@ -140,38 +154,40 @@ import random
 import uuid
 
 @router.post("/send-verification")
-async def send_verification(email: str = Body(...)):
+async def send_verification(email: str = Body(...), type: str = Body(...)):
     user = await db.users.find_one({"email": email})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    otp = str(random.randint(100000, 999999))
-    email_token = str(uuid.uuid4())
+    from services.email_service import send_verification_email
+    from services.sms_service import send_otp_sms
     
-    await db.users.update_one(
-        {"email": email},
-        {"$set": {
-            "mobile_otp": otp,
-            "email_verify_token": email_token
-        }}
-    )
-    
-    from services.notification_engine import NotificationEngine
-    notify = NotificationEngine()
-    
-    email_sent = notify.send_verification_email(email, email_token)
-    
+    email_sent = False
     sms_sent = False
-    phone = user.get("phone")
-    if phone:
-        # Ensure phone has country code for Twilio
-        if not phone.startswith("+"):
-            phone = "+91" + phone[-10:] # Default to India if no country code
-        sms_sent = notify.send_otp_sms(phone, otp)
+    
+    if type == 'email':
+        email_token = str(uuid.uuid4())
+        await db.users.update_one({"email": email}, {"$set": {"email_verify_token": email_token}})
+        email_sent = send_verification_email(email, email_token)
+    elif type == 'mobile':
+        otp = str(random.randint(100000, 999999))
+        await db.users.update_one({"email": email}, {"$set": {"mobile_otp": otp}})
+        phone = user.get("phone")
+        if phone:
+            if not phone.startswith("+"):
+                phone = "+91" + phone[-10:]
+            sms_sent = send_otp_sms(phone, otp)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid verification type")
         
+    if type == 'email' and not email_sent:
+        raise HTTPException(status_code=500, detail="Failed to send verification email. Please check your configuration.")
+    elif type == 'mobile' and not sms_sent:
+        raise HTTPException(status_code=500, detail="Failed to send SMS. Your number might be unverified on Twilio Trial account.")
+
     return {
         "success": True, 
-        "message": "Verification codes sent", 
+        "message": f"Verification code sent to {type}", 
         "email_sent": email_sent, 
         "sms_sent": sms_sent
     }
@@ -208,3 +224,79 @@ async def verify_email(token: str = Body(..., embed=True)):
         }
     )
     return {"success": True, "message": "Email verified successfully"}
+
+from core.security import get_password_hash
+
+@router.post("/forgot-password")
+async def forgot_password(email: str = Body(..., embed=True)):
+    user = await db.users.find_one({"email": email})
+    if not user:
+        # Don't reveal if user exists or not for security
+        return {"success": True, "message": "If an account exists, a reset link was sent."}
+        
+    reset_token = str(uuid.uuid4())
+    
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {"reset_password_token": reset_token}}
+    )
+    
+    from services.email_service import send_password_reset_email
+    send_password_reset_email(email, reset_token)
+    
+    return {"success": True, "message": "If an account exists, a reset link was sent."}
+
+@router.post("/reset-password")
+async def reset_password(token: str = Body(...), new_password: str = Body(...)):
+    user = await db.users.find_one({"reset_password_token": token})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+        
+    hashed_password = get_password_hash(new_password)
+    
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {"password": hashed_password},
+            "$unset": {"reset_password_token": ""}
+        }
+    )
+    return {"success": True, "message": "Password has been reset successfully"}
+
+@router.put("/update-identity")
+async def update_identity(email: str = Body(None), phone: str = Body(None), user_id: str = Body(...)):
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    update_data = {}
+    
+    if email and email != user.get("email"):
+        update_data["email"] = email
+        update_data["email_verified"] = False
+        
+    if phone and phone != user.get("phone"):
+        update_data["phone"] = phone
+        update_data["mobile_verified"] = False
+        
+    if update_data:
+        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
+        # Fetch updated user
+        updated_user = await db.users.find_one({"_id": ObjectId(user_id)})
+        return {
+            "success": True, 
+            "message": "Identity updated",
+            "user": {
+                "_id": str(updated_user["_id"]),
+                "first_name": updated_user.get("first_name", ""),
+                "last_name": updated_user.get("last_name", ""),
+                "phone": updated_user.get("phone", ""),
+                "email": updated_user.get("email", ""),
+                "role": updated_user.get("role", "user"),
+                "email_verified": updated_user.get("email_verified", False),
+                "mobile_verified": updated_user.get("mobile_verified", False),
+                "has_custom_password": updated_user.get("has_custom_password", True)
+            }
+        }
+    
+    return {"success": True, "message": "No changes made"}
