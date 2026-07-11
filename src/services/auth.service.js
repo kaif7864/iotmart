@@ -14,3 +14,13 @@ export const loginWithGoogle = async (credential) => {
   const response = await apiClient.post('/auth/google', { credential });
   return response.data;
 };
+
+export const sendVerification = async (email) => {
+  const response = await apiClient.post('/auth/send-verification', { email });
+  return response.data;
+};
+
+export const verifyMobile = async (email, otp) => {
+  const response = await apiClient.post('/auth/verify-mobile', { email, otp });
+  return response.data;
+};

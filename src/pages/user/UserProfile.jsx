@@ -3,11 +3,11 @@ import {
   User, Package, MapPin, Heart, LogOut, 
   ChevronRight, ExternalLink, Shield, Bell, 
   Settings, Clock, CreditCard, ChevronDown, Plus, 
-  Trash2, Eye, LayoutDashboard, History, Download, Loader2, CheckCircle2, X, Ticket, Gift
+  Trash2, Eye, LayoutDashboard, History, Download, Loader2, CheckCircle2, X, Ticket, Gift, ShieldCheck
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getOrdersByUser, getLiveTracking, updateUserProfile } from '../../services/api';
+import { getOrdersByUser, getLiveTracking, updateUserProfile, sendVerification, verifyMobile } from '../../services/api';
 import toast from 'react-hot-toast';
 import OrderTimeline from '../../components/ui/OrderTimeline';
 import { generateInvoice } from '../../utils/generateInvoice';
@@ -52,6 +52,45 @@ const UserProfile = () => {
   const [showTracking, setShowTracking] = useState(false);
   const [trackingData, setTrackingData] = useState(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
+
+  // Verification State
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleSendVerification = async () => {
+    try {
+      setIsSendingCode(true);
+      const res = await sendVerification(user.email);
+      if (res.success) {
+        toast.success("Verification codes sent to email & mobile");
+        setShowOtpInput(true);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to send code");
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  const handleVerifyMobile = async () => {
+    try {
+      setIsVerifying(true);
+      const res = await verifyMobile(user.email, otp);
+      if (res.success) {
+        toast.success("Mobile verified successfully!");
+        setShowOtpInput(false);
+        const updatedUser = { ...user, mobile_verified: true };
+        setUser(updatedUser);
+        localStorage.setItem('user_session', JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Invalid OTP");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const handleTrackShipment = async (tracking_id) => {
     if (!tracking_id) return;
@@ -603,6 +642,75 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                     </h3>
                     
                     <div className="space-y-8 max-w-2xl">
+                      {/* Identity Verification */}
+                      <div className="card p-6 rounded-2xl border border-border-main">
+                        <div className="flex items-center gap-3 mb-6">
+                          <ShieldCheck className="h-6 w-6 text-accent" />
+                          <h4 className="heading-section">Identity Verification</h4>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-app-bg rounded-xl border border-border-subtle">
+                            <div>
+                              <p className="font-bold text-text-primary text-sm">Email Address</p>
+                              <p className="text-xs text-text-muted">{user?.email}</p>
+                            </div>
+                            {user?.email_verified ? (
+                              <span className="badge-success"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
+                            ) : (
+                              <span className="badge-warning text-status-warning bg-status-warning/10 px-3 py-1 rounded-sm text-[10px] font-black uppercase tracking-widest">Pending</span>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-4 bg-app-bg rounded-xl border border-border-subtle">
+                            <div>
+                              <p className="font-bold text-text-primary text-sm">Mobile Number</p>
+                              <p className="text-xs text-text-muted">{user?.phone || 'Not provided'}</p>
+                            </div>
+                            {user?.mobile_verified ? (
+                              <span className="badge-success"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
+                            ) : (
+                              <span className="badge-warning text-status-warning bg-status-warning/10 px-3 py-1 rounded-sm text-[10px] font-black uppercase tracking-widest">Pending</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {(!user?.email_verified || !user?.mobile_verified) && (
+                          <div className="mt-6 pt-6 border-t border-border-subtle">
+                            {!showOtpInput ? (
+                              <button 
+                                onClick={handleSendVerification}
+                                disabled={isSendingCode}
+                                className="w-full py-4 btn-premium text-[10px]"
+                              >
+                                {isSendingCode ? 'Sending Codes...' : 'Verify Now'}
+                              </button>
+                            ) : (
+                              <div className="space-y-4">
+                                <p className="text-xs text-text-muted text-center">Check your email for the verification link. Enter the 6-digit SMS OTP below to verify your mobile number.</p>
+                                <div className="flex gap-4">
+                                  <input 
+                                    type="text" 
+                                    placeholder="Enter SMS OTP" 
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    className="field-input flex-grow text-center tracking-[0.5em] font-mono text-lg"
+                                    maxLength={6}
+                                  />
+                                  <button 
+                                    onClick={handleVerifyMobile}
+                                    disabled={isVerifying || otp.length !== 6}
+                                    className="px-8 btn-premium"
+                                  >
+                                    {isVerifying ? '...' : 'Verify'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="grid grid-cols-1 gap-6">
                         <div className="card p-6 rounded-2xl flex items-center justify-between">
                           <div>

@@ -22,6 +22,7 @@ const Cart = lazy(() => import('./pages/shop/Cart'));
 const Checkout = lazy(() => import('./pages/shop/Checkout'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
+const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 const UserProfile = lazy(() => import('./pages/user/UserProfile'));
 const DeviceDashboard = lazy(() => import('./pages/DeviceDashboard'));
 const About = lazy(() => import('./pages/public/About'));
@@ -80,6 +81,7 @@ function App() {
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route path="/track" element={<TrackOrder />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/support" element={<Support />} />

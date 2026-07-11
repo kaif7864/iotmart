@@ -50,7 +50,9 @@ async def login(email: str = Body(...), password: str = Body(...)):
             "email": user["email"],
             "role": user.get("role", "user"),
             "wishlist": user.get("wishlist", []),
-            "addresses": user.get("addresses", [])
+            "addresses": user.get("addresses", []),
+            "email_verified": user.get("email_verified", False),
+            "mobile_verified": user.get("mobile_verified", False)
         }
     }
 
@@ -124,10 +126,85 @@ async def google_login(credential: str = Body(..., embed=True)):
                 "role": user.get("role", "user"),
                 "wishlist": user.get("wishlist", []),
                 "addresses": user.get("addresses", []),
-                "profile_picture": user.get("profile_picture", "")
+                "profile_picture": user.get("profile_picture", ""),
+                "email_verified": user.get("email_verified", False),
+                "mobile_verified": user.get("mobile_verified", False)
             }
         }
         
     except ValueError as e:
         # Invalid token
         raise HTTPException(status_code=400, detail=f"Invalid Google token: {str(e)}")
+
+import random
+import uuid
+
+@router.post("/send-verification")
+async def send_verification(email: str = Body(...)):
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    otp = str(random.randint(100000, 999999))
+    email_token = str(uuid.uuid4())
+    
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {
+            "mobile_otp": otp,
+            "email_verify_token": email_token
+        }}
+    )
+    
+    from services.notification_engine import NotificationEngine
+    notify = NotificationEngine()
+    
+    email_sent = notify.send_verification_email(email, email_token)
+    
+    sms_sent = False
+    phone = user.get("phone")
+    if phone:
+        # Ensure phone has country code for Twilio
+        if not phone.startswith("+"):
+            phone = "+91" + phone[-10:] # Default to India if no country code
+        sms_sent = notify.send_otp_sms(phone, otp)
+        
+    return {
+        "success": True, 
+        "message": "Verification codes sent", 
+        "email_sent": email_sent, 
+        "sms_sent": sms_sent
+    }
+
+@router.post("/verify-mobile")
+async def verify_mobile(email: str = Body(...), otp: str = Body(...)):
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if user.get("mobile_otp") != otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+        
+    await db.users.update_one(
+        {"email": email},
+        {
+            "$set": {"mobile_verified": True},
+            "$unset": {"mobile_otp": ""}
+        }
+    )
+    return {"success": True, "message": "Mobile number verified successfully"}
+
+@router.post("/verify-email")
+async def verify_email(token: str = Body(..., embed=True)):
+    user = await db.users.find_one({"email_verify_token": token})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link")
+        
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {"email_verified": True},
+            "$unset": {"email_verify_token": ""}
+        }
+    )
+    return {"success": True, "message": "Email verified successfully"}

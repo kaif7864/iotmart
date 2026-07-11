@@ -27,16 +27,71 @@ class NotificationEngine:
         print(body)
         print("="*60 + "\n")
 
+    def send_email_real(self, to_email: str, subject: str, body: str):
+        self._log_to_console("Email", to_email, subject, body)
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            from core.config import settings
+
+            if not settings.GMAIL_USER or not settings.GMAIL_PASSWORD:
+                print("Missing Gmail credentials")
+                return False
+
+            msg = MIMEMultipart()
+            msg['From'] = settings.GMAIL_USER
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
+
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server.starttls()
+            server.login(settings.GMAIL_USER, settings.GMAIL_PASSWORD)
+            server.send_message(msg)
+            server.quit()
+            return True
+        except Exception as e:
+            print(f"Failed to send real email: {e}")
+            return False
+
+    def send_otp_sms(self, phone: str, otp: str):
+        subject = "Mobile Verification"
+        body = f"Your IoTMart verification code is: {otp}. Do not share this with anyone."
+        self._log_to_console("SMS", phone, subject, body)
+        
+        try:
+            if self.twilio_client and self.twilio_phone:
+                self.twilio_client.messages.create(
+                    body=body,
+                    from_=self.twilio_phone,
+                    to=phone
+                )
+                return True
+            else:
+                print("Twilio client not initialized or missing phone number")
+                return False
+        except Exception as e:
+            print(f"Twilio SMS Error: {e}")
+            return False
+
     def send_welcome_email(self, user_name: str, user_email: str):
         subject = "Welcome to IoTMart Engineering Hub 🦾"
-        body = f"Hello {user_name},\n\Your account has been successfully registered on IoTMart. \nYou now have full access to our B2B marketplace, IoT device dashboard, and engineering support.\n\nHappy Building!\n- The IoTMart System"
-        self._log_to_console("Email", user_email, subject, body)
+        body = f"Hello {user_name},\n\nYour account has been successfully registered on IoTMart. \nYou now have full access to our B2B marketplace, IoT device dashboard, and engineering support.\n\nHappy Building!\n- The IoTMart System"
+        self.send_email_real(user_email, subject, body)
+        return True
+
+    def send_verification_email(self, user_email: str, token: str):
+        subject = "Verify your IoTMart Account"
+        verify_url = f"https://iotmart-5uop.onrender.com/verify-email?token={token}"
+        body = f"Hello,\n\nPlease verify your email address by clicking the link below:\n{verify_url}\n\nIf you did not request this, please ignore this email.\n\n- The IoTMart System"
+        self.send_email_real(user_email, subject, body)
         return True
 
     def send_order_placed_email(self, user_email: str, order_id: str, total: float):
         subject = f"Order Confirmation: #{order_id[-8:].upper()}"
         body = f"Order Placed Successfully!\n\nYour hardware order has been received and is currently being processed by our logistics team.\nTotal Value: ${total}\n\nYou can track your delivery live on your dashboard.\n"
-        self._log_to_console("Email", user_email, subject, body)
+        self.send_email_real(user_email, subject, body)
         return True
 
     def send_whatsapp_alert(self, phone: str, order_id: str, status: str, tracking_id: str = None):

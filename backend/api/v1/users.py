@@ -17,7 +17,9 @@ def user_helper(user) -> dict:
         "role": user.get("role", "user"),
         "status": user.get("status", "active"),
         "wishlist": user.get("wishlist", []),
-        "addresses": user.get("addresses", [])
+        "addresses": user.get("addresses", []),
+        "email_verified": user.get("email_verified", False),
+        "mobile_verified": user.get("mobile_verified", False)
     }
 
 @router.get("/", response_model=List[dict])

@@ -13,5 +13,7 @@ class Config:
     NEXAR_CLIENT_ID = os.getenv("NEXAR_CLIENT_ID", "")
     NEXAR_CLIENT_SECRET = os.getenv("NEXAR_CLIENT_SECRET", "")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    GMAIL_USER = os.getenv("GMAIL_USER", "")
+    GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD", "")
 
 settings = Config()

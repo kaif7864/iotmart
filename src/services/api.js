@@ -1,5 +1,5 @@
 import apiClient from './api.client';
-import { loginUser, signupUser } from './auth.service';
+import { loginUser, signupUser, sendVerification, verifyMobile } from './auth.service';
 import { getProducts, getProductsPaginated, addProductReview, getProductById, createProduct, updateProduct, deleteProduct } from './product.service';
 import { placeOrder, getOrdersByUser, getUserOrders, getAllOrders, updateOrderStatus, updateOrderTracking, getLiveTracking } from './order.service';
 import { getUsers, updateUserRole, updateUserStatus, toggleWishlist, addAddress, removeAddress, updateUserProfile } from './user.service';
@@ -32,5 +32,7 @@ export {
   removeAddress,
   updateUserProfile,
   getDashboardStats,
-  getAIChatReply
+  getAIChatReply,
+  sendVerification,
+  verifyMobile
 };
