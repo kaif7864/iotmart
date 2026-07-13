@@ -7,6 +7,7 @@ import { getProducts } from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SkeletonGrid } from '../../components/common';
 import { useCart } from '../../hooks/useCart';
+import SEO from '../../components/common/SEO';
 
 const Home = () => {
   const { onAddToCart } = useCart();
@@ -75,6 +76,10 @@ const Home = () => {
 
   return (
     <div className="pt-20 overflow-x-hidden">
+      <SEO 
+        title="IoTMart | Next-Gen Electronic Components & IoT Hardware" 
+        description="Discover premium microcontrollers, sensors, and smart home modules. High-performance hardware for industrial innovators and hobbyists." 
+      />
       {/* Hero Carousel Section */}
       <section className="relative min-h-[85vh] flex items-center bg-surface-dark overflow-hidden">
         <AnimatePresence mode="wait">

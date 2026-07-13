@@ -12,6 +12,29 @@ router = APIRouter()
 async def create_order(order: OrderCreate = Body(...), background_tasks: BackgroundTasks = None):
     order_dict = order.model_dump()
     
+    from core.database import db
+    
+    # Check and Decrement Stock
+    products_to_update = []
+    for item in order_dict.get("items", []):
+        product_id = item.get("product_id")
+        quantity = item.get("quantity", 1)
+        if product_id:
+            try:
+                product = await db.products.find_one({"_id": ObjectId(product_id)})
+                if not product:
+                    raise HTTPException(status_code=400, detail=f"Product {product_id} not found")
+                if product.get("stockQuantity", 0) < quantity:
+                    raise HTTPException(status_code=400, detail=f"Insufficient stock for {product.get('name', 'Product')}")
+                products_to_update.append({"id": ObjectId(product_id), "qty": quantity})
+            except Exception as e:
+                pass
+                
+    # Proceed to decrement stock
+    for p in products_to_update:
+        await db.products.update_one({"_id": p["id"]}, {"$inc": {"stockQuantity": -p["qty"]}})
+    
+    
     # Initialize Logistics (Shiprocket)
     from services.logistics_engine import logistics
     # Real app would pass user details, using mock user here
@@ -73,8 +96,14 @@ async def update_order_status(id: str, status: str = Body(..., embed=True)):
             from services.notification_service import notify
             order = await order_repo.get_order_by_id(id)
             if order:
-                # In real app, fetch user's phone from db.users. Using a mock phone here.
-                notify.send_whatsapp_alert("+919876543210", str(id), status, order.get("tracking_id"))
+                from core.database import db
+                from bson import ObjectId
+                
+                user = await db.users.find_one({"_id": ObjectId(order["user_id"])})
+                if user and user.get("phone"):
+                    notify.send_whatsapp_alert(user["phone"], str(id), status, order.get("tracking_id"))
+                else:
+                    print(f"Warning: No phone number found for user {order['user_id']}")
         except Exception as e:
             print(f"Failed to send WhatsApp alert: {e}")
             
@@ -102,10 +131,66 @@ async def cancel_order(id: str):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
         
-    if order.get("status") in ["Delivered", "Cancelled"]:
+    if order.get("status") in ["Delivered", "Cancelled", "Refunded"]:
         raise HTTPException(status_code=400, detail=f"Cannot cancel order with status: {order.get('status')}")
         
     result = await order_repo.update_order(id, {"status": "Cancelled"})
     if result.modified_count:
+        from core.database import db
+        # Restore stock
+        for item in order.get("items", []):
+            product_id = item.get("product_id")
+            if product_id:
+                try:
+                    await db.products.update_one({"_id": ObjectId(product_id)}, {"$inc": {"stockQuantity": item.get("quantity", 1)}})
+                except Exception:
+                    pass
         return {"message": "Order cancelled successfully"}
     raise HTTPException(status_code=500, detail="Failed to cancel order")
+
+@router.put("/{id}/refund")
+async def refund_order(id: str):
+    order = await order_repo.get_order_by_id(id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    if order.get("status") == "Refunded":
+        raise HTTPException(status_code=400, detail="Order is already refunded")
+        
+    if order.get("payment_status") != "Paid" and order.get("payment_status") != "SUCCESS":
+        raise HTTPException(status_code=400, detail="Order is not paid, cannot refund")
+        
+    from services.payment_service import payment_service
+    refund_result = await payment_service.initiate_refund(
+        order_id=order.get("payment_order_id") or id,
+        amount=order.get("total", 0)
+    )
+    
+    if refund_result.get("status") == "success":
+        await order_repo.update_order(id, {"status": "Refunded"})
+        
+        # Restore stock
+        from core.database import db
+        for item in order.get("items", []):
+            product_id = item.get("product_id")
+            if product_id:
+                try:
+                    from bson import ObjectId
+                    await db.products.update_one({"_id": ObjectId(product_id)}, {"$inc": {"stockQuantity": item.get("quantity", 1)}})
+                except Exception:
+                    pass
+        
+        # Notify user (if phone exists)
+        try:
+            from services.notification_service import notify
+            from core.database import db
+            from bson import ObjectId
+            user = await db.users.find_one({"_id": ObjectId(order["user_id"])})
+            if user and user.get("phone"):
+                notify.send_whatsapp_alert(user["phone"], str(id), "Refunded")
+        except Exception as e:
+            print(f"Failed to notify refund: {e}")
+            
+        return {"message": "Refund initiated successfully", "refund_id": refund_result.get("refund_id")}
+    else:
+        raise HTTPException(status_code=400, detail=f"Refund failed: {refund_result.get('error')}")

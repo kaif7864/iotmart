@@ -44,3 +44,8 @@ export const deactivateAccount = async (id) => {
   const response = await apiClient.put(`/users/${id}/deactivate`);
   return response.data;
 };
+
+export const addRecentlyViewed = async (userId, productId) => {
+  const response = await apiClient.post(`/users/${userId}/recently_viewed`, { product_id: productId });
+  return response.data;
+};

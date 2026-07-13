@@ -19,10 +19,11 @@ class Settings(BaseSettings):
     CASHFREE_APP_ID: str = ""
     CASHFREE_SECRET_KEY: str = ""
     CASHFREE_WEBHOOK_SECRET: str = ""
+    CASHFREE_API_URL: str = "https://sandbox.cashfree.com/pg/orders"
     SHIPROCKET_EMAIL: str = ""
     SHIPROCKET_PASSWORD: str = ""
     FRONTEND_URL: str = "http://localhost:5173"
-    ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000,https://iotmart.vercel.app"
     BREVO_API_KEY: str = ""
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

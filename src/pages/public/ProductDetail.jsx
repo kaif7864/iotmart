@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useComparison } from '../../context/ComparisonContext';
 import { useCart } from '../../hooks/useCart';
 import { Skeleton, SkeletonText } from '../../components/common';
+import SEO from '../../components/common/SEO';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -34,6 +35,24 @@ const ProductDetail = () => {
   const isInCompare = comparisonList.some(p => p._id === id);
 
   useEffect(() => {
+    const trackRecentlyViewed = async (productData) => {
+      // LocalStorage Tracking
+      const recentlyViewed = JSON.parse(localStorage.getItem('recently_viewed') || '[]');
+      const filtered = recentlyViewed.filter(p => p._id !== productData._id);
+      const updated = [productData, ...filtered].slice(0, 10);
+      localStorage.setItem('recently_viewed', JSON.stringify(updated));
+
+      // Backend Tracking
+      if (user) {
+        try {
+          const { addRecentlyViewed } = await import('../../services/api');
+          await addRecentlyViewed(user._id, productData._id);
+        } catch (err) {
+          console.error("Failed to sync recently viewed:", err);
+        }
+      }
+    };
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -45,11 +64,7 @@ const ProductDetail = () => {
         setAllProducts(productsData);
         setReviews(productData.reviews || []);
 
-        // Track Recently Viewed
-        const recentlyViewed = JSON.parse(localStorage.getItem('recently_viewed') || '[]');
-        const filtered = recentlyViewed.filter(p => p._id !== productData._id);
-        const updated = [productData, ...filtered].slice(0, 10);
-        localStorage.setItem('recently_viewed', JSON.stringify(updated));
+        await trackRecentlyViewed(productData);
       } catch (error) {
         console.error("Error loading product detail:", error);
       } finally {
@@ -128,6 +143,10 @@ const ProductDetail = () => {
 
   return (
     <div className="pt-32 pb-32 min-h-screen bg-app-bg">
+      <SEO 
+        title={`${product.name} | IoTMart`} 
+        description={product.description?.substring(0, 150) || `Buy ${product.name} at IoTMart. High-quality IoT components.`} 
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link to="/shop" className="inline-flex items-center gap-2 text-text-secondary hover:text-accent transition-all mb-8 group text-[10px] font-black uppercase tracking-widest">
           <ArrowLeft className="h-4 w-4" /> Back to Shop

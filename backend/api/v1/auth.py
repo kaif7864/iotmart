@@ -43,6 +43,23 @@ async def login(email: str = Body(...), password: str = Body(...)):
     if not verify_password(password, user["password"]):
         raise HTTPException(status_code=400, detail="Invalid credentials")
     
+    if user.get("is_2fa_enabled"):
+        # If email type, generate and send OTP
+        if user.get("two_factor_type") == "email":
+            import random
+            from services.email_service import send_verification_email
+            otp = str(random.randint(100000, 999999))
+            await user_repo.collection.update_one({"email": email}, {"$set": {"email_token": otp}})
+            # Send OTP email
+            # We use the existing verification template or a generic one
+            send_verification_email(email, otp)
+            
+        return {
+            "requires_2fa": True,
+            "two_factor_type": user.get("two_factor_type", "email"),
+            "email": user["email"]
+        }
+    
     access_token = create_access_token(data={"sub": user["email"], "role": user.get("role", "user")})
     
     return {
@@ -114,6 +131,21 @@ async def google_login(credential: str = Body(..., embed=True), isSignup: bool =
             else:
                 send_welcome_email(user.get("first_name", ""), user["email"])
                 
+        if user.get("is_2fa_enabled"):
+            # If email type, generate and send OTP
+            if user.get("two_factor_type") == "email":
+                import random
+                from services.email_service import send_verification_email
+                otp = str(random.randint(100000, 999999))
+                await user_repo.collection.update_one({"email": email}, {"$set": {"email_token": otp}})
+                send_verification_email(email, otp)
+                
+            return {
+                "requires_2fa": True,
+                "two_factor_type": user.get("two_factor_type", "email"),
+                "email": user["email"]
+            }
+
         # Generate our JWT token for the user
         access_token = create_access_token(data={"sub": user["email"], "role": user.get("role", "user")})
         
@@ -143,8 +175,8 @@ async def send_verification(email: str = Body(...), type: str = Body(...), backg
     sms_sent = False
     
     if type == 'email':
-        email_token = str(uuid.uuid4())
-        await user_repo.collection.update_one({"email": email}, {"$set": {"email_verify_token": email_token}})
+        email_token = str(random.randint(100000, 999999))
+        await user_repo.collection.update_one({"email": email}, {"$set": {"email_token": email_token}})
         if background_tasks:
             background_tasks.add_task(send_verification_email, email, email_token)
             email_sent = True
@@ -154,14 +186,17 @@ async def send_verification(email: str = Body(...), type: str = Body(...), backg
         otp = str(random.randint(100000, 999999))
         await user_repo.collection.update_one({"email": email}, {"$set": {"mobile_otp": otp}})
         phone = user.get("phone")
-        if phone:
-            if not phone.startswith("+"):
-                phone = "+91" + phone[-10:]
-            if background_tasks:
-                background_tasks.add_task(send_otp_sms, phone, otp)
-                sms_sent = True
-            else:
-                sms_sent = send_otp_sms(phone, otp)
+        if not phone:
+            raise HTTPException(status_code=400, detail="No phone number linked to this account. Please update profile.")
+            
+        if not phone.startswith("+"):
+            phone = "+91" + phone.lstrip("0")[-10:]
+            
+        if background_tasks:
+            background_tasks.add_task(send_otp_sms, phone, otp)
+            sms_sent = True
+        else:
+            sms_sent = send_otp_sms(phone, otp)
     else:
         raise HTTPException(status_code=400, detail="Invalid verification type")
         
@@ -175,6 +210,107 @@ async def send_verification(email: str = Body(...), type: str = Body(...), backg
         "message": f"Verification code sent to {type}", 
         "email_sent": email_sent, 
         "sms_sent": sms_sent
+    }
+
+
+# 2FA ENDPOINTS
+import pyotp
+import qrcode
+import base64
+from io import BytesIO
+
+@router.get("/2fa/setup")
+async def setup_2fa(email: str):
+    user = await user_repo.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    secret = pyotp.random_base32()
+    totp = pyotp.TOTP(secret)
+    provisioning_uri = totp.provisioning_uri(name=user["email"], issuer_name="IoTMart")
+    
+    # Generate QR code
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(provisioning_uri)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    qr_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    
+    return {
+        "secret": secret,
+        "qr_code": f"data:image/png;base64,{qr_b64}"
+    }
+
+@router.post("/2fa/enable")
+async def enable_2fa(email: str = Body(...), secret: str = Body(...), code: str = Body(...), type: str = Body(...)):
+    user = await user_repo.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if type == "authenticator":
+        totp = pyotp.TOTP(secret)
+        if not totp.verify(code):
+            raise HTTPException(status_code=400, detail="Invalid Authenticator code")
+        
+        await user_repo.collection.update_one(
+            {"email": email},
+            {"$set": {"is_2fa_enabled": True, "two_factor_type": "authenticator", "two_factor_secret": secret}}
+        )
+    elif type == "email":
+        if user.get("email_token") != code:
+            raise HTTPException(status_code=400, detail="Invalid OTP")
+            
+        await user_repo.collection.update_one(
+            {"email": email},
+            {
+                "$set": {"is_2fa_enabled": True, "two_factor_type": "email"},
+                "$unset": {"email_token": ""}
+            }
+        )
+    
+    return {"success": True, "message": "2FA has been successfully enabled."}
+
+@router.post("/2fa/disable")
+async def disable_2fa(email: str = Body(...)):
+    user = await user_repo.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    await user_repo.collection.update_one(
+        {"email": email},
+        {"$set": {"is_2fa_enabled": False, "two_factor_type": "email", "two_factor_secret": None}}
+    )
+    return {"success": True, "message": "2FA has been disabled."}
+
+@router.post("/login/verify-2fa")
+async def verify_login_2fa(email: str = Body(...), code: str = Body(...)):
+    user = await user_repo.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if not user.get("is_2fa_enabled"):
+        raise HTTPException(status_code=400, detail="2FA is not enabled for this user")
+        
+    if user.get("two_factor_type") == "authenticator":
+        totp = pyotp.TOTP(user.get("two_factor_secret"))
+        if not totp.verify(code):
+            raise HTTPException(status_code=400, detail="Invalid Authenticator code")
+    else:
+        # Email OTP
+        if user.get("email_token") != code:
+            raise HTTPException(status_code=400, detail="Invalid OTP")
+        # Clear token
+        await user_repo.collection.update_one({"email": email}, {"$unset": {"email_token": ""}})
+        
+    access_token = create_access_token(data={"sub": user["email"], "role": user.get("role", "user")})
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": serialize_user(user)
     }
 
 @router.post("/verify-mobile")

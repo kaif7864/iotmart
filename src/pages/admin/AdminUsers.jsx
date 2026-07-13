@@ -56,10 +56,12 @@ const AdminUsers = () => {
     }
   };
 
-  const filteredUsers = users.filter(u =>
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter(u => {
+    const fullName = (u.name || `${u.first_name || ''} ${u.last_name || ''}`).toLowerCase();
+    const userEmail = (u.email || '').toLowerCase();
+    const search = (searchTerm || '').toLowerCase();
+    return fullName.includes(search) || userEmail.includes(search);
+  });
 
   return (
     <div className="space-y-10">
@@ -111,10 +113,10 @@ const AdminUsers = () => {
               render: (u) => (
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-sm bg-surface-dark flex items-center justify-center text-text-inverse font-black text-lg flex-shrink-0">
-                    {u.name.charAt(0)}
+                    {(u.name || u.first_name || 'U').charAt(0)}
                   </div>
                   <div>
-                    <p className="text-sm font-black text-text-primary uppercase tracking-tight">{u.name}</p>
+                    <p className="text-sm font-black text-text-primary uppercase tracking-tight">{u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Unknown User'}</p>
                     <p className="label-caps lowercase mt-1">{u.email}</p>
                   </div>
                 </div>

@@ -62,6 +62,24 @@ async def toggle_wishlist(id: str, product_id: str = Body(..., embed=True)):
     await user_repo.update_user(id, {"wishlist": wishlist})
     return {"wishlist": wishlist}
 
+@router.post("/{id}/recently_viewed")
+async def add_recently_viewed(id: str, product_id: str = Body(..., embed=True)):
+    user = await user_repo.get_user_by_id(id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    recently_viewed = user.get("recently_viewed", [])
+    # Remove if exists to push to front
+    if product_id in recently_viewed:
+        recently_viewed.remove(product_id)
+        
+    recently_viewed.insert(0, product_id)
+    # Keep only last 10
+    recently_viewed = recently_viewed[:10]
+        
+    await user_repo.update_user(id, {"recently_viewed": recently_viewed})
+    return {"recently_viewed": recently_viewed}
+
 @router.post("/{id}/addresses")
 async def add_address(id: str, address: Address):
     address_dict = address.dict()

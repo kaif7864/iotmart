@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getOrdersByUser, getLiveTracking, updateUserProfile, sendVerification, verifyMobile, changeUserPassword, updateOrderStatus, updateIdentity, forgotPassword, deactivateAccount, addProductReview } from '../../services/api';
+import { getOrdersByUser, getUserTransactions, getLiveTracking, updateUserProfile, sendVerification, verifyMobile, changeUserPassword, updateOrderStatus, updateIdentity, forgotPassword, deactivateAccount, addProductReview } from '../../services/api';
 import toast from 'react-hot-toast';
 import OrderTimeline from '../../components/ui/OrderTimeline';
 import { generateInvoice } from '../../utils/generateInvoice';
@@ -18,6 +18,7 @@ import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../context/WishlistContext';
 import AddAddressModal from '../../components/profile/AddAddressModal';
 import LiveTrackingModal from '../../components/profile/LiveTrackingModal';
+import TwoFactorSettingsModal from '../../components/profile/TwoFactorSettingsModal';
 
 const INDIAN_STATES = [
   "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", 
@@ -29,12 +30,39 @@ const INDIAN_STATES = [
 ];
 
 const UserProfile = () => {
-  const { handleAddToCart } = useCart();
+  const { cartItems, onAddToCart, onUpdateQuantity, onRemoveFromCart } = useCart();
   const { user, setUser, logout, addresses, addAddress, removeAddress, formatPrice, currency } = useAuth();
   const { wishlist, toggleWishlist } = useWishlist();
   const [orders, setOrders] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [expandedTxnId, setExpandedTxnId] = useState(null);
   const [reviewModal, setReviewModal] = useState({ isOpen: false, productId: null, productName: '' });
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+
+  const [scheduledRemovals, setScheduledRemovals] = useState({});
+
+  const handleWishlistAddToCart = (product) => {
+    onAddToCart(product);
+    if (scheduledRemovals[product._id]) clearTimeout(scheduledRemovals[product._id]);
+    const timeoutId = setTimeout(() => {
+      toggleWishlist(product);
+      setScheduledRemovals(prev => { const next = {...prev}; delete next[product._id]; return next; });
+    }, 3000);
+    setScheduledRemovals(prev => ({...prev, [product._id]: timeoutId}));
+  };
+
+  const handleWishlistUpdateQuantity = (productId, newQuantity) => {
+    onUpdateQuantity(productId, newQuantity);
+    if (scheduledRemovals[productId]) {
+      clearTimeout(scheduledRemovals[productId]);
+      const product = wishlist.find(p => p._id === productId);
+      const timeoutId = setTimeout(() => {
+        if (product) toggleWishlist(product);
+        setScheduledRemovals(prev => { const next = {...prev}; delete next[productId]; return next; });
+      }, 3000);
+      setScheduledRemovals(prev => ({...prev, [productId]: timeoutId}));
+    }
+  };
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -71,6 +99,7 @@ const UserProfile = () => {
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [deactivateAgreed, setDeactivateAgreed] = useState(false);
   const [isDeactivating, setIsDeactivating] = useState(false);
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
 
   // Password State
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -284,6 +313,10 @@ const UserProfile = () => {
         try {
           const data = await getOrdersByUser(user._id);
           setOrders(data);
+          try {
+            const txns = await getUserTransactions(user._id);
+            setTransactions(txns);
+          } catch(e) { console.error("Error fetching transactions", e) }
         } catch (error) {
           console.error("Error fetching orders:", error);
         } finally {
@@ -350,6 +383,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'settings', label: 'My Profile', icon: User },
     { id: 'orders', label: 'Orders', icon: Package },
+    { id: 'transactions', label: 'Transactions', icon: History },
     { id: 'coupons', label: 'Coupons', icon: Ticket },
     { id: 'payments', label: 'Saved Cards & Wallet', icon: CreditCard },
     { id: 'security', label: 'Security & Login', icon: Shield },
@@ -630,6 +664,115 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                 </motion.div>
               )}
 
+              {activeTab === 'transactions' && (
+                <motion.div key="transactions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                  {loading ? (
+                    <SkeletonGrid count={2} />
+                  ) : transactions.length === 0 ? (
+                    <div className="card rounded-[32px] p-12 text-center flex flex-col items-center">
+                      <History className="h-16 w-16 text-text-muted mb-4 opacity-50" />
+                      <h3 className="text-xl font-bold text-text-primary mb-2">No Transactions Yet</h3>
+                      <p className="text-text-secondary">When you make a payment, it will appear here.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {transactions.map((txn) => (
+                        <div key={txn._id} className="card rounded-[32px] overflow-hidden border border-border-main transition-all">
+                          <div 
+                            onClick={() => setExpandedTxnId(expandedTxnId === txn._id ? null : txn._id)}
+                            className="p-6 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${txn.status === 'Success' || txn.status === 'Paid' ? 'bg-status-success-bg text-status-success' : txn.status === 'Failed' ? 'bg-status-danger-bg text-status-danger' : 'bg-status-warning-bg text-status-warning'}`}>
+                                {txn.status === 'Success' || txn.status === 'Paid' ? <CheckCircle2 className="h-6 w-6" /> : txn.status === 'Failed' ? <X className="h-6 w-6" /> : <Clock className="h-6 w-6" />}
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-text-primary uppercase tracking-tight">Txn ID: {txn._id}</p>
+                                <p className="text-xs text-text-muted mt-1">{new Date(txn.created_at).toLocaleString()} • {txn.payment_method}</p>
+                              </div>
+                            </div>
+                            <div className="text-right flex items-center gap-4">
+                              <div>
+                                <p className="text-lg font-black text-text-primary">{formatPrice(txn.amount)}</p>
+                                <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${txn.status === 'Success' || txn.status === 'Paid' ? 'text-status-success' : txn.status === 'Failed' ? 'text-status-danger' : 'text-status-warning'}`}>{txn.status}</p>
+                              </div>
+                              <ChevronDown className={`h-5 w-5 text-text-muted transition-transform ${expandedTxnId === txn._id ? 'rotate-180' : ''}`} />
+                            </div>
+                          </div>
+                          
+                          <AnimatePresence>
+                            {expandedTxnId === txn._id && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="border-t border-border-subtle bg-surface/50 overflow-hidden"
+                              >
+                                <div className="p-8 space-y-6">
+                                  {/* Receipt Style Header */}
+                                  <div className="flex justify-between items-start pb-6 border-b border-border-subtle border-dashed">
+                                    <div>
+                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Transaction Receipt</p>
+                                      <p className="text-sm font-bold text-text-primary">Ref: {txn._id}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Date & Time</p>
+                                      <p className="text-sm font-bold text-text-primary">{new Date(txn.created_at).toLocaleString()}</p>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Details Grid */}
+                                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                                    <div>
+                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Payment Method</p>
+                                      <div className="flex items-center gap-2">
+                                        <CreditCard className="h-4 w-4 text-accent" />
+                                        <p className="text-sm font-bold text-text-primary">{txn.payment_method}</p>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Status</p>
+                                      <div className="flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full ${txn.status === 'Success' || txn.status === 'Paid' ? 'bg-status-success' : txn.status === 'Failed' ? 'bg-status-danger' : 'bg-status-warning'}`}></span>
+                                        <p className="text-sm font-bold text-text-primary uppercase">{txn.status}</p>
+                                      </div>
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-1">
+                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Gateway Reference</p>
+                                      <p className="text-sm font-medium text-text-secondary break-all font-mono bg-app-bg px-3 py-2 rounded-lg border border-border-subtle inline-block">{txn.payment_id || 'N/A'}</p>
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-1">
+                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Associated Order Ref</p>
+                                      <p className="text-sm font-medium text-text-secondary break-all font-mono bg-app-bg px-3 py-2 rounded-lg border border-border-subtle inline-block">{txn.order_id || 'N/A'}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Amount Summary */}
+                                  <div className="pt-6 border-t border-border-subtle flex justify-between items-center bg-app-bg -mx-8 px-8 -mb-8 pb-8 mt-4 rounded-b-[32px]">
+                                    <div>
+                                      <p className="text-sm font-bold text-text-secondary uppercase tracking-tight">Total Amount</p>
+                                      {txn.status === 'Failed' && (
+                                        <p className="text-[10px] text-status-danger mt-1 max-w-[200px] sm:max-w-xs leading-tight">
+                                          Transaction declined or cancelled. No amount was charged.
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-3xl font-black text-text-primary tracking-tighter">{formatPrice(txn.amount)}</p>
+                                      <p className="text-xs text-text-muted font-bold tracking-widest">{txn.currency}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
               {activeTab === 'wishlist' && (
                 <motion.div key="wishlist" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -643,12 +786,50 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                           <p className="text-lg font-black text-accent mt-1">{formatPrice(product.price || 0)}</p>
                           <div className="flex gap-2 mt-4">
                             <Link to={`/product/${product._id}`} className="px-4 py-2 bg-app-bg text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-surface-hover transition-all border border-border-main">View</Link>
-                            <button 
-                              onClick={() => handleAddToCart(product)}
-                              className="px-4 py-2 bg-accent text-white text-[10px] font-black uppercase tracking-widest rounded-sm hover:shadow-lg hover:shadow-accent/20 transition-all"
-                            >
-                              Add to Cart
-                            </button>
+                            {(() => {
+                              const cartItem = cartItems.find(item => item._id === product._id);
+                              const quantityInCart = cartItem ? cartItem.quantity : 0;
+                              
+                              return quantityInCart > 0 ? (
+                                <div className="flex items-center bg-surface-hover rounded-md p-1 border border-border-main">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      if (quantityInCart === 1) {
+                                        onRemoveFromCart(product._id);
+                                        if (scheduledRemovals[product._id]) {
+                                          clearTimeout(scheduledRemovals[product._id]);
+                                          setScheduledRemovals(prev => { const next = {...prev}; delete next[product._id]; return next; });
+                                        }
+                                      }
+                                      else handleWishlistUpdateQuantity(product._id, quantityInCart - 1);
+                                    }}
+                                    className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent hover:bg-card-bg rounded transition-colors text-sm font-black"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-8 text-center text-xs font-bold text-text-primary">
+                                    {quantityInCart}
+                                  </span>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleWishlistUpdateQuantity(product._id, quantityInCart + 1);
+                                    }}
+                                    className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent hover:bg-card-bg rounded transition-colors text-sm font-black"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => handleWishlistAddToCart(product)}
+                                  className="px-4 py-2 bg-accent text-white text-[10px] font-black uppercase tracking-widest rounded-sm hover:shadow-lg hover:shadow-accent/20 transition-all"
+                                >
+                                  Add to Cart
+                                </button>
+                              );
+                            })()}
                             <button onClick={() => toggleWishlist(product)} className="px-2 py-2 text-text-muted hover:text-status-danger transition-all">
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -997,15 +1178,23 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                             )}
                           </AnimatePresence>
                         </div>
-                        <div className="p-6 border border-status-success/30 rounded-2xl bg-status-success-bg flex items-center justify-between">
+                        <div className={`p-6 border rounded-2xl flex items-center justify-between ${user?.is_2fa_enabled ? 'border-status-success/30 bg-status-success-bg' : 'border-border-subtle bg-app-bg'}`}>
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <p className="font-black text-status-success uppercase tracking-tight text-sm">Two-Factor Auth</p>
-                              <span className="badge-success text-[8px]">Active</span>
+                              <p className={`font-black uppercase tracking-tight text-sm ${user?.is_2fa_enabled ? 'text-status-success' : 'text-text-primary'}`}>Two-Factor Auth</p>
+                              {user?.is_2fa_enabled && <span className="badge-success text-[8px]">Active</span>}
                             </div>
-                            <p className="text-xs text-status-success/80 font-medium">Protected by authenticator app.</p>
+                            <p className={`text-xs font-medium ${user?.is_2fa_enabled ? 'text-status-success/80' : 'text-text-muted'}`}>
+                              {user?.is_2fa_enabled 
+                                ? `Protected by ${user.two_factor_type === 'authenticator' ? 'authenticator app' : 'email OTP'}.`
+                                : 'Add an extra layer of security to your account.'}
+                            </p>
                           </div>
-                          <button type="button" className="px-6 py-3 card rounded-xl label-caps text-status-success hover:bg-status-success hover:text-text-inverse transition-all">
+                          <button 
+                            type="button" 
+                            onClick={() => setShowTwoFactorModal(true)}
+                            className={`px-6 py-3 card rounded-xl label-caps transition-all ${user?.is_2fa_enabled ? 'text-status-success hover:bg-status-success hover:text-text-inverse' : 'text-text-primary hover:border-accent hover:text-accent'}`}
+                          >
                             Manage
                           </button>
                         </div>
@@ -1133,6 +1322,12 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
         newAddr={newAddr} 
         setNewAddr={setNewAddr} 
         handleAddAddress={handleAddAddress} 
+        INDIAN_STATES={INDIAN_STATES}
+      />
+
+      <TwoFactorSettingsModal
+        show={showTwoFactorModal}
+        onClose={() => setShowTwoFactorModal(false)}
       />
 
       <LiveTrackingModal 

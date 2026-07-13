@@ -12,6 +12,7 @@ from schemas.payment import PaymentSessionRequest
 async def create_cashfree_session(req: PaymentSessionRequest, user: dict = Depends(get_current_user)):
     result = await payment_service.create_session(
         order_amount=req.order_amount,
+        order_currency=req.order_currency,
         customer_id=req.customer_id,
         customer_phone=req.customer_phone,
         customer_email=req.customer_email,

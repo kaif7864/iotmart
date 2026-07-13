@@ -25,6 +25,7 @@ const Signup = lazy(() => import('./pages/auth/Signup'));
 const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const UserProfile = lazy(() => import('./pages/user/UserProfile'));
+const NotFound = lazy(() => import('./pages/public/NotFound'));
 const DeviceDashboard = lazy(() => import('./pages/DeviceDashboard'));
 const About = lazy(() => import('./pages/public/About'));
 const Contact = lazy(() => import('./pages/public/Contact'));
@@ -40,7 +41,8 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
-const AdminIoT = lazy(() => import('./pages/admin/AdminIoT'));
+// const AdminIoT = lazy(() => import('./pages/admin/AdminIoT')); // Lab type not needed
+const AdminPromos = lazy(() => import('./pages/admin/AdminPromos'));
 
 // Components
 import ChatSupport from './components/feedback/ChatSupport';
@@ -104,16 +106,15 @@ function App() {
                   <Route path="products" element={<AdminProducts />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="users" element={<AdminUsers />} />
-                  <Route path="iot" element={<AdminIoT />} />
+                  <Route path="promos" element={<AdminPromos />} />
+                  {/* <Route path="iot" element={<AdminIoT />} /> */}
                 </Route>
               </Route>
 
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-
-          {/* <ChatSupport /> */}
-            </Router>
+        </Router>
           </WishlistProvider>
           </CartProvider>
         </ComparisonProvider>

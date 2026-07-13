@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, UploadFile, File
+import os
+import shutil
+import uuid
 from typing import List
 from schemas.product import Product, ProductCreate
 from repositories.product_repo import product_repo
@@ -68,11 +71,33 @@ async def update_product(id: str, product: ProductCreate = Body(...), current_us
 
 @router.delete("/{id}")
 async def delete_product(id: str, current_user: dict = Depends(get_current_active_admin)):
-    delete_result = await product_repo.delete_product(id)
-    if delete_result.deleted_count == 1:
-        await delete_cache("products:page:*")
-        return {"message": "Product deleted successfully"}
-    raise HTTPException(status_code=404, detail="Product not found")
+    result = await product_repo.delete_product(id)
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    await delete_cache("products:page:1:limit:100")
+    return {"success": True, "message": "Product deleted successfully"}
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@router.post("/upload")
+async def upload_image(file: UploadFile = File(...)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+        
+    ext = file.filename.split(".")[-1]
+    filename = f"{uuid.uuid4()}.{ext}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Assuming frontend URL maps /uploads to backend's UPLOAD_DIR
+    # In production, we'd use S3/Cloudinary URL
+    # For now we return local path that FastAPI will serve statically
+    image_url = f"/uploads/{filename}"
+    return {"success": True, "image_url": image_url}
 
 @router.post("/{id}/reviews")
 async def add_review(id: str, review: dict = Body(...)):

@@ -23,27 +23,24 @@ const Cart = () => {
   const discountAmount = (subtotal * discount) / 100;
   const total = subtotal + shipping + tax - discountAmount;
 
-  const handleApplyPromo = (codeToApply = promoCode) => {
+  const handleApplyPromo = async (codeToApply = promoCode) => {
     const code = codeToApply.toUpperCase().trim();
     if (!code) return;
     
     setIsApplying(true);
-    setTimeout(() => {
-      if (code === 'IOTMART10') {
-        setDiscount(10);
-        setAppliedPromo(code);
-        setPromoCode('');
-        toast.success(`Coupon ${code} applied successfully!`);
-      } else if (code === 'WELCOME5') {
-        setDiscount(5);
-        setAppliedPromo(code);
-        setPromoCode('');
-        toast.success(`Coupon ${code} applied successfully!`);
-      } else {
-        toast.error(`Invalid promo code: ${code}`);
-      }
+    try {
+      const { validateCoupon } = await import('../../services/api');
+      const data = await validateCoupon(code, subtotal);
+      
+      setDiscount(data.discount_percentage);
+      setAppliedPromo(data.code);
+      setPromoCode('');
+      toast.success(`Coupon ${data.code} applied! Saved ${formatPrice(data.discount_amount)}`);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || `Invalid promo code: ${code}`);
+    } finally {
       setIsApplying(false);
-    }, 800);
+    }
   };
 
   const handleSaveForLater = (item) => {

@@ -55,6 +55,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+
+# Create uploads dir if it doesn't exist to prevent crash on startup
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 app.include_router(api_router, prefix="/api")
 
 @app.get("/")

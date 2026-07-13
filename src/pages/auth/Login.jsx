@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Mail, Lock, User, ArrowRight, CircuitBoard, ShieldCheck, Eye, EyeOff } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { isValidEmail } from '../../utils/validators';
 import { handleError } from '../../utils/errorHandler';
 import { useGoogleLogin } from '@react-oauth/google';
 import apiClient from '../../services/api.client';
+import { verify2FALogin } from '../../services/api';
 
 const Login = () => {
-  const { login, googleLogin } = useAuth();
+  const { login, completeLogin, googleLogin } = useAuth();
   const navigate = useNavigate();
   
   const googleLoginAction = useGoogleLogin({
@@ -18,6 +19,11 @@ const Login = () => {
       setIsLoading(true);
       const result = await googleLogin(tokenResponse.access_token, false);
       setIsLoading(false);
+      if (result.requires_2fa) {
+        setTwoFactorData(result.data);
+        setShow2FA(true);
+        return;
+      }
       
       if (result.success) {
         toast.success('Google Login Successful!');
@@ -37,6 +43,11 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  
+  // 2FA States
+  const [show2FA, setShow2FA] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [twoFactorData, setTwoFactorData] = useState(null);
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
@@ -78,6 +89,12 @@ const Login = () => {
     const result = await login(credentials);
     setIsLoading(false);
 
+    if (result.requires_2fa) {
+      setTwoFactorData(result.data);
+      setShow2FA(true);
+      return;
+    }
+
     if (result.success) {
       toast.success('Welcome back to IoTMart!');
       if (result.user?.role === 'admin') {
@@ -88,6 +105,26 @@ const Login = () => {
     } else {
       handleError(new Error(result.message || 'Invalid credentials'));
       setError(result.message || 'Invalid credentials');
+    }
+  };
+
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    if (!otp || otp.length !== 6) return;
+    setIsLoading(true);
+    try {
+      const res = await verify2FALogin({ email: twoFactorData.email, code: otp });
+      completeLogin(res.data);
+      toast.success('Welcome back to IoTMart!');
+      if (res.data.user?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/shop');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Invalid 2FA code");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -190,6 +227,44 @@ const Login = () => {
             </motion.div>
           </div>
         )}
+
+        {/* 2FA Modal */}
+        <AnimatePresence>
+          {show2FA && (
+            <div className="fixed inset-0 bg-app-bg/80 backdrop-blur-sm z-[999] flex items-center justify-center px-4">
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="card p-10 rounded-[32px] max-w-md w-full relative">
+                <button onClick={() => setShow2FA(false)} className="absolute top-6 right-6 text-text-muted hover:text-text-primary text-xl">&times;</button>
+                <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ShieldCheck className="h-8 w-8 text-accent" />
+                </div>
+                <h2 className="heading-section mb-2 text-center">Two-Factor Authentication</h2>
+                <p className="text-xs text-text-muted text-center mb-8">
+                  {twoFactorData?.two_factor_type === 'authenticator' 
+                    ? 'Enter the 6-digit code from your authenticator app.'
+                    : `We've sent a 6-digit code to ${twoFactorData?.email}.`}
+                </p>
+                
+                <form onSubmit={handleVerify2FA} className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 text-center">Enter 6-Digit Code</label>
+                    <input 
+                      type="text" 
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      maxLength={6}
+                      className="w-full px-5 py-4 bg-app-bg border border-border-main rounded-xl text-2xl tracking-[0.5em] text-center font-mono focus:border-accent outline-none transition-all"
+                      placeholder="123456"
+                      required
+                    />
+                  </div>
+                  <button disabled={isLoading || otp.length !== 6} className="w-full btn-premium py-4">
+                    {isLoading ? 'Verifying...' : 'Verify Code'}
+                  </button>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         <div className="relative mb-8">
           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border-main"></div></div>

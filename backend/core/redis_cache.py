@@ -2,6 +2,7 @@ import redis.asyncio as redis
 import os
 import json
 import asyncio
+import traceback
 from core.config import settings
 
 redis_client = None
@@ -15,14 +16,18 @@ async def init_redis():
         redis_client = redis.from_url(
             settings.REDIS_URL, 
             decode_responses=True, 
-            socket_timeout=3,
-            socket_connect_timeout=3
+            socket_timeout=5,
+            socket_connect_timeout=5,
+            health_check_interval=30,
+            socket_keepalive=True,
+            ssl_cert_reqs="none" if "rediss://" in settings.REDIS_URL else None
         )
-        # Test connection so it fails fast
         await asyncio.wait_for(redis_client.ping(), timeout=3.0)
-        print("Connected to Redis")
+        print("Connected to Redis successfully.")
     except Exception as e:
+        import traceback
         print(f"Failed to connect to Redis: {e}")
+        traceback.print_exc()
         redis_client = None
 
 async def close_redis():
@@ -37,7 +42,8 @@ async def get_cache(key: str):
         data = await asyncio.wait_for(redis_client.get(key), timeout=2.0)
         return json.loads(data) if data else None
     except Exception as e:
-        print(f"Redis get error: {e}")
+        print(f"Redis get error: {type(e).__name__} - {e}")
+        traceback.print_exc()
         return None
 
 async def set_cache(key: str, data: dict, expire: int = 300):
@@ -47,7 +53,8 @@ async def set_cache(key: str, data: dict, expire: int = 300):
         await asyncio.wait_for(redis_client.setex(key, expire, json.dumps(data)), timeout=2.0)
         return True
     except Exception as e:
-        print(f"Redis set error: {e}")
+        print(f"Redis set error: {type(e).__name__} - {e}")
+        traceback.print_exc()
         return False
 
 async def delete_cache(pattern: str):

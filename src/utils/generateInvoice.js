@@ -59,6 +59,8 @@ export const generateInvoice = (order, user, currency = { code: 'INR', symbol: '
   
   const items = order?.items || [{ name: 'Sample Item', price: 999, quantity: 1 }];
 
+  const safeSymbol = currency.symbol === '₹' ? 'Rs.' : currency.symbol;
+
   items.forEach(item => {
     const price = (item.price * currency.rate).toFixed(2);
     const total = (item.price * item.quantity * currency.rate).toFixed(2);
@@ -66,9 +68,9 @@ export const generateInvoice = (order, user, currency = { code: 'INR', symbol: '
     
     tableRows.push([
       item.name,
-      `${currency.symbol}${price}`,
+      `${safeSymbol}${price}`,
       item.quantity,
-      `${currency.symbol}${total}`
+      `${safeSymbol}${total}`
     ]);
   });
 
@@ -95,12 +97,12 @@ export const generateInvoice = (order, user, currency = { code: 'INR', symbol: '
   doc.text('Grand Total:', 140, finalY + 14);
   
   doc.setFont('helvetica', 'normal');
-  doc.text(`${currency.symbol}${subtotal.toFixed(2)}`, 180, finalY, { align: 'right' });
-  doc.text(`${currency.symbol}${gst.toFixed(2)}`, 180, finalY + 7, { align: 'right' });
+  doc.text(`${safeSymbol}${subtotal.toFixed(2)}`, 180, finalY, { align: 'right' });
+  doc.text(`${safeSymbol}${gst.toFixed(2)}`, 180, finalY + 7, { align: 'right' });
   
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryColor);
-  doc.text(`${currency.symbol}${finalTotal.toFixed(2)}`, 180, finalY + 14, { align: 'right' });
+  doc.text(`${safeSymbol}${finalTotal.toFixed(2)}`, 180, finalY + 14, { align: 'right' });
 
   // Footer
   doc.setTextColor(150, 150, 150);

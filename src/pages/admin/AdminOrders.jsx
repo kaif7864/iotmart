@@ -5,7 +5,7 @@ import {
   Loader2, ExternalLink, ShieldCheck,
   DollarSign, RotateCcw, Download
 } from 'lucide-react';
-import { getAllOrders, updateOrderStatus, updateOrderTracking } from '../../services/api';
+import { getAllOrders, updateOrderStatus, updateOrderTracking, refundOrder } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { SkeletonTableRows, Input, Table, Badge, Button, EmptyState, Modal, ConfirmModal } from '../../components/common';
 import { generateInvoice } from '../../utils/generateInvoice';
@@ -65,9 +65,16 @@ const AdminOrders = () => {
   };
 
   const confirmRefund = async () => {
-    await handleUpdateStatus(refundTarget, 'Refunded');
-    setIsRefundOpen(false);
-    setRefundTarget(null);
+    try {
+      await refundOrder(refundTarget);
+      setOrders(prev => prev.map(o => o._id === refundTarget ? { ...o, status: 'Refunded' } : o));
+      if (selectedOrder?._id === refundTarget) setSelectedOrder(prev => ({ ...prev, status: 'Refunded' }));
+    } catch (error) {
+      alert(error.response?.data?.detail || 'Failed to refund order');
+    } finally {
+      setIsRefundOpen(false);
+      setRefundTarget(null);
+    }
   };
 
   const filteredOrders = orders.filter(o =>

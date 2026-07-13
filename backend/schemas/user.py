@@ -14,7 +14,13 @@ class UserBase(BaseModel):
     role: str = "user"
     status: str = "active"
     wishlist: List[str] = [] # List of product IDs
+    recently_viewed: List[str] = [] # List of product IDs
     addresses: List[Address] = []
+    
+    # 2FA Fields
+    is_2fa_enabled: bool = False
+    two_factor_type: str = "email" # "email" or "authenticator"
+    two_factor_secret: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str

@@ -61,6 +61,11 @@ export const AuthProvider = ({ children }) => {
       // Lazy import to avoid circular dependencies if any
       const { loginWithGoogle } = await import('../services/auth.service');
       const data = await loginWithGoogle(credential, isSignup);
+      
+      if (data.requires_2fa) {
+        return { success: true, requires_2fa: true, data };
+      }
+      
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user_session', JSON.stringify(data.user));
       
@@ -76,6 +81,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const data = await loginUser(credentials);
+      
+      if (data.requires_2fa) {
+        return { success: true, requires_2fa: true, data };
+      }
+      
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user_session', JSON.stringify(data.user));
       
@@ -86,6 +96,16 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return { success: false, message: error.response?.data?.detail || 'Login failed. Please check your credentials.' };
     }
+  };
+
+  // Used after successful 2FA verification
+  const completeLogin = (data) => {
+    localStorage.setItem('token', data.access_token);
+    localStorage.setItem('user_session', JSON.stringify(data.user));
+    
+    setUser(data.user);
+    setIsAdmin(data.user.role === 'admin');
+    setAddresses(data.user.addresses || []);
   };
 
   const signup = async (userData) => {
@@ -142,6 +162,7 @@ export const AuthProvider = ({ children }) => {
       setUser,
       isAdmin, 
       login,
+      completeLogin,
       googleLogin, 
       signup,
       logout, 

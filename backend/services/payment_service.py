@@ -10,7 +10,7 @@ class PaymentService:
         self.app_id = settings.CASHFREE_APP_ID or "TEST_APP_ID"
         self.secret_key = settings.CASHFREE_SECRET_KEY or "TEST_SECRET_KEY"
         self.webhook_secret = settings.CASHFREE_WEBHOOK_SECRET
-        self.url = "https://sandbox.cashfree.com/pg/orders"
+        self.url = settings.CASHFREE_API_URL or "https://sandbox.cashfree.com/pg/orders"
         self.headers = {
             "x-client-id": self.app_id,
             "x-client-secret": self.secret_key,
@@ -18,13 +18,13 @@ class PaymentService:
             "Content-Type": "application/json"
         }
 
-    async def create_session(self, order_amount: float, customer_id: str, customer_phone: str, customer_email: str, customer_name: str) -> dict:
+    async def create_session(self, order_amount: float, order_currency: str, customer_id: str, customer_phone: str, customer_email: str, customer_name: str) -> dict:
         order_id = f"ORDER_{uuid.uuid4().hex[:12]}"
         
         payload = {
             "order_id": order_id,
-            "order_amount": order_amount,
-            "order_currency": "INR",
+            "order_amount": round(order_amount, 2),
+            "order_currency": order_currency,
             "customer_details": {
                 "customer_id": customer_id,
                 "customer_phone": customer_phone,
@@ -61,6 +61,26 @@ class PaymentService:
         ).digest()
         
         expected_signature = base64.b64encode(expected_hmac).decode('utf-8')
-        return signature == expected_signature
+        return hmac.compare_digest(expected_signature, signature)
+
+    async def initiate_refund(self, order_id: str, amount: float, refund_id: str = None) -> dict:
+        if not refund_id:
+            refund_id = f"REF_{uuid.uuid4().hex[:12]}"
+            
+        payload = {
+            "refund_amount": amount,
+            "refund_id": refund_id,
+            "refund_note": "Refund initiated by admin"
+        }
+        
+        url = f"{self.url}/{order_id}/refunds"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, headers=self.headers)
+            
+        if response.status_code == 200:
+            return {"status": "success", "refund_id": refund_id, "data": response.json()}
+        else:
+            return {"status": "error", "error": response.text}
 
 payment_service = PaymentService()
