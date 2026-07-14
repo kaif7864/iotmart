@@ -13,6 +13,14 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('iotmart_cart', JSON.stringify(cartItems));
   }, [cartItems]);
 
+  useEffect(() => {
+    const handleLogout = () => {
+      setCartItems([]);
+    };
+    window.addEventListener('auth-logout', handleLogout);
+    return () => window.removeEventListener('auth-logout', handleLogout);
+  }, []);
+
   const handleAddToCart = (product) => {
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item._id === product._id);

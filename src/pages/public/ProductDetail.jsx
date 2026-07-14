@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useComparison } from '../../context/ComparisonContext';
 import { useCart } from '../../hooks/useCart';
 import { Skeleton, SkeletonText } from '../../components/common';
+import SEO from '../../components/common/SEO';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -34,6 +35,24 @@ const ProductDetail = () => {
   const isInCompare = comparisonList.some(p => p._id === id);
 
   useEffect(() => {
+    const trackRecentlyViewed = async (productData) => {
+      // LocalStorage Tracking
+      const recentlyViewed = JSON.parse(localStorage.getItem('recently_viewed') || '[]');
+      const filtered = recentlyViewed.filter(p => p._id !== productData._id);
+      const updated = [productData, ...filtered].slice(0, 10);
+      localStorage.setItem('recently_viewed', JSON.stringify(updated));
+
+      // Backend Tracking
+      if (user) {
+        try {
+          const { addRecentlyViewed } = await import('../../services/api');
+          await addRecentlyViewed(user._id, productData._id);
+        } catch (err) {
+          console.error("Failed to sync recently viewed:", err);
+        }
+      }
+    };
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -45,11 +64,7 @@ const ProductDetail = () => {
         setAllProducts(productsData);
         setReviews(productData.reviews || []);
 
-        // Track Recently Viewed
-        const recentlyViewed = JSON.parse(localStorage.getItem('recently_viewed') || '[]');
-        const filtered = recentlyViewed.filter(p => p._id !== productData._id);
-        const updated = [productData, ...filtered].slice(0, 10);
-        localStorage.setItem('recently_viewed', JSON.stringify(updated));
+        await trackRecentlyViewed(productData);
       } catch (error) {
         console.error("Error loading product detail:", error);
       } finally {
@@ -75,7 +90,8 @@ const ProductDetail = () => {
         return;
     }
     const newReview = {
-        user: user.name,
+        user_id: user._id,
+        user: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.name || "User",
         rating: userRating,
         comment: reviewText,
         date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -127,6 +143,10 @@ const ProductDetail = () => {
 
   return (
     <div className="pt-32 pb-32 min-h-screen bg-app-bg">
+      <SEO 
+        title={`${product.name} | IoTMart`} 
+        description={product.description?.substring(0, 150) || `Buy ${product.name} at IoTMart. High-quality IoT components.`} 
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link to="/shop" className="inline-flex items-center gap-2 text-text-secondary hover:text-accent transition-all mb-8 group text-[10px] font-black uppercase tracking-widest">
           <ArrowLeft className="h-4 w-4" /> Back to Shop
@@ -396,130 +416,130 @@ const ProductDetail = () => {
 
         {/* Reviews Section */}
         <div className="mt-40">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-16 border-b border-border-main pb-10">
+          {/* PREMIUM REVIEWS SECTION */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-16 border-b border-border-main/50 pb-8 relative">
+            <div className="absolute -bottom-[1px] left-0 w-32 h-[2px] bg-gradient-to-r from-accent to-transparent"></div>
             <div>
-              <h2 className="text-3xl font-black text-text-primary tracking-tighter uppercase">Customer <span className="text-accent">Audit</span></h2>
-              <div className="flex items-center gap-3 mt-3">
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-4 w-4 fill-status-star text-status-star" />)}
+              <h2 className="text-4xl font-black text-text-primary tracking-tighter">
+                Customer <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-purple-500">Reviews</span>
+              </h2>
+              <div className="flex items-center gap-4 mt-4">
+                <div className="flex gap-1 bg-surface py-1.5 px-3 rounded-full border border-border-main shadow-sm">
+                  {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-4 w-4 fill-amber-400 text-amber-400" />)}
                 </div>
-                <span className="text-sm font-black text-text-primary">{product.rating} Verified Average</span>
+                <span className="text-sm font-bold text-text-primary">{product.rating} Average Rating</span>
+                <span className="text-xs font-medium text-text-muted px-2 py-0.5 bg-surface rounded-full">{product.reviews_count} Reviews</span>
               </div>
             </div>
-            <button 
-              onClick={() => setShowReviewForm(!showReviewForm)}
-              className="px-10 py-4 bg-text-primary text-white text-xs font-black rounded-sm uppercase tracking-[0.2em] hover:bg-accent transition-all shadow-xl shadow-slate-900/10"
-            >
-              {showReviewForm ? 'Dismiss Form' : 'Post Your Audit'}
-            </button>
           </div>
 
-          <AnimatePresence>
-            {showReviewForm && (
-              <motion.div 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="mb-16 bg-card-bg border border-border-main rounded-sm p-10 shadow-sm"
-              >
-                <h4 className="text-lg font-black text-text-primary mb-8 uppercase tracking-tight">Technical Rating</h4>
-                <div className="flex gap-4 mb-10">
-                  {[1, 2, 3, 4, 5].map(s => (
-                    <button key={s} onClick={() => setUserRating(s)} className="transition-transform hover:scale-125">
-                      <Star className={`h-10 w-10 ${s <= userRating ? 'fill-status-star text-status-star' : 'text-border-subtle'}`} />
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Detailed Experience</label>
-                    <textarea 
-                      rows="4" 
-                      value={reviewText}
-                      onChange={(e) => setReviewText(e.target.value)}
-                      placeholder="Discuss pin stability, power consumption, or general quality..."
-                      className="field-input"
-                    />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            <div className="lg:col-span-2 space-y-6">
+              {reviews.length === 0 ? (
+                <div className="bg-card-bg border border-border-main border-dashed rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full min-h-[300px]">
+                  <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center mb-6">
+                    <Star className="w-10 h-10 text-border-subtle" />
                   </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Hardware Photos</label>
-                    <div className="border-2 border-dashed border-border-main rounded-sm h-40 flex flex-col items-center justify-center bg-surface hover:bg-surface-hover transition-all cursor-pointer group">
-                      <Camera className="h-8 w-8 text-text-muted group-hover:text-accent mb-3" />
-                      <span className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Drop Images Here</span>
-                    </div>
-                  </div>
+                  <h3 className="text-xl font-bold text-text-primary mb-2">No reviews yet</h3>
+                  <p className="text-text-secondary max-w-md mx-auto mb-8">This product doesn't have any reviews yet. Buy this product to be the first one to review it!</p>
                 </div>
-                
-                <div className="mt-10 flex justify-end">
-                  <button 
-                    onClick={handleReviewSubmit}
-                    className="px-12 py-4 bg-accent text-white text-[10px] font-black rounded-sm uppercase tracking-[0.2em] hover:bg-accent/90 transition-all shadow-lg"
+              ) : (
+                reviews.map((rev, i) => (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ delay: i * 0.1 }}
+                    key={i} 
+                    className="group bg-card-bg border border-border-main/50 hover:border-accent/30 rounded-2xl p-8 shadow-sm hover:shadow-xl hover:shadow-accent/5 transition-all duration-300 relative overflow-hidden"
                   >
-                    Publish Audit
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
-            <div className="lg:col-span-2 space-y-8">
-              {reviews.map((rev, i) => (
-                <motion.div 
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  key={i} 
-                  className="bg-card-bg border border-border-main rounded-sm p-10 shadow-sm hover:shadow-md transition-all"
-                >
-                  <div className="flex justify-between items-start mb-8">
-                    <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 rounded-sm bg-accent/10 flex items-center justify-center text-accent font-black text-xl">
-                        {rev.user.charAt(0)}
+                  <div className="absolute inset-0 bg-gradient-to-r from-accent/0 via-accent/[0.02] to-accent/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                  
+                  <div className="flex justify-between items-start mb-6 relative z-10">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-purple-500 p-[2px]">
+                        <div className="w-full h-full rounded-full bg-card-bg flex items-center justify-center text-text-primary font-bold text-lg">
+                          {rev.user.charAt(0)}
+                        </div>
                       </div>
                       <div>
-                        <h5 className="font-black text-text-primary text-lg uppercase tracking-tight">{rev.user}</h5>
-                        <p className="text-text-muted text-[10px] font-black uppercase tracking-widest mt-1">{rev.date}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-bold text-text-primary text-sm">{rev.user}</h4>
+                          {rev.verified_buyer && (
+                            <span className="bg-emerald-500/10 text-emerald-600 px-2.5 py-0.5 rounded-full flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                              <CheckCircle className="w-3 h-3" />
+                              Verified
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-text-muted">{rev.date}</p>
                       </div>
                     </div>
-                    <div className="flex gap-0.5">
+                    <div className="flex gap-0.5 bg-surface px-2.5 py-1.5 rounded-full border border-border-main">
                       {[1, 2, 3, 4, 5].map(s => (
-                        <Star key={s} className={`h-3 w-3 ${s <= rev.rating ? 'fill-status-star text-status-star' : 'text-border-subtle'}`} />
+                        <Star key={s} className={`h-3.5 w-3.5 ${s <= rev.rating ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_2px_rgba(251,191,36,0.4)]' : 'text-border-subtle'}`} />
                       ))}
                     </div>
                   </div>
-                  <p className="text-text-secondary text-base leading-relaxed mb-8 font-medium italic">"{rev.comment}"</p>
-                  <div className="flex gap-3">
+                  
+                  <p className="text-text-secondary text-sm leading-relaxed mb-6 relative z-10">{rev.comment}</p>
+                  
+                  <div className="flex gap-3 relative z-10">
                     {[1, 2].map(idx => (
-                      <div key={idx} className="w-20 h-20 rounded-sm bg-surface border border-border-main flex items-center justify-center">
-                        <ImageIcon className="h-5 w-5 text-text-muted/30" />
+                      <div key={idx} className="w-16 h-16 rounded-xl bg-surface border border-border-main flex items-center justify-center overflow-hidden hover:border-accent cursor-pointer transition-colors">
+                        <ImageIcon className="h-5 w-5 text-text-muted/40" />
                       </div>
                     ))}
                   </div>
                 </motion.div>
-              ))}
+              )))}
             </div>
             
-            <div className="space-y-8">
-              <div className="bg-card-bg border border-border-main rounded-sm p-10 sticky top-32">
-                <h4 className="text-lg font-black text-text-primary mb-8 uppercase tracking-tight">Audit Distribution</h4>
-                {[5, 4, 3, 2, 1].map(s => (
-                  <div key={s} className="flex items-center gap-4 mb-6">
-                    <span className="text-xs font-black text-text-primary w-4">{s}</span>
-                    <Star className="h-3.5 w-3.5 fill-status-star text-status-star" />
-                    <div className="flex-grow h-2 bg-surface rounded-full overflow-hidden border border-border-subtle">
-                      <div className="h-full bg-yellow-400 rounded-full" style={{ width: s === 5 ? '85%' : s === 4 ? '10%' : '2%' }} />
-                    </div>
-                    <span className="text-[10px] font-black text-text-muted w-10 text-right">{s === 5 ? '85%' : s === 4 ? '10%' : '2%'}</span>
-                  </div>
-                ))}
-                <div className="mt-10 p-6 bg-surface rounded-sm border border-border-subtle">
-                  <p className="label-caps mb-2">Editor's Note</p>
-                  <p className="text-[10px] text-text-secondary leading-relaxed font-medium">98% of users reported seamless integration with ESP-IDF and Arduino IDE.</p>
+            <div className="space-y-6">
+              <div className="bg-gradient-to-b from-surface to-card-bg border border-border-main rounded-2xl p-8 sticky top-32 shadow-sm">
+                <h4 className="text-base font-bold text-text-primary mb-8 tracking-tight flex items-center gap-2">
+                  <Star className="w-5 h-5 text-accent" />
+                  Rating Breakdown
+                </h4>
+                
+                <div className="space-y-4">
+                  {[5, 4, 3, 2, 1].map(s => {
+                    const count = reviews.filter(r => Math.round(r.rating) === s).length;
+                    const percentage = reviews.length > 0 ? `${Math.round((count / reviews.length) * 100)}%` : '0%';
+                    
+                    return (
+                      <div key={s} className="flex items-center gap-3 group">
+                        <div className="flex items-center gap-1 w-8">
+                          <span className="text-xs font-bold text-text-primary">{s}</span>
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                        </div>
+                        
+                        <div className="flex-grow h-2.5 bg-border-main/50 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            whileInView={{ width: percentage }}
+                            transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+                            className={`h-full rounded-full ${s >= 4 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : s === 3 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`} 
+                          />
+                        </div>
+                        
+                        <span className="text-xs font-bold text-text-muted w-10 text-right group-hover:text-text-primary transition-colors">
+                          {percentage}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="mt-10 p-5 bg-card-bg rounded-xl border border-border-main shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-accent"></div>
+                  <p className="text-xs font-bold text-text-primary mb-1 uppercase tracking-wider">Expert Verdict</p>
+                  <p className="text-sm text-text-secondary leading-relaxed">98% of buyers recommend this product for professional IoT deployments.</p>
                 </div>
               </div>
             </div>
           </div>
+          {/* END PREMIUM REVIEWS SECTION */}
         </div>
 
         {/* Related Products */}

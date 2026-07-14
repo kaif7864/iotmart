@@ -31,3 +31,8 @@ export const getLiveTracking = async (tracking_id) => {
   const response = await apiClient.get(`/orders/tracking/${tracking_id}`);
   return response.data;
 };
+
+export const refundOrder = async (id) => {
+  const response = await apiClient.put(`/orders/${id}/refund`);
+  return response.data;
+};

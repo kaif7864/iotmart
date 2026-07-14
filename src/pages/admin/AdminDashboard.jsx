@@ -18,7 +18,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const data = await getDashboardStats();
+        const data = await getDashboardStats(activeRange);
         setStats(data);
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -27,7 +27,7 @@ const AdminDashboard = () => {
       }
     };
     fetchStats();
-  }, []);
+  }, [activeRange]);
 
   const kpis = [
     { label: 'Total Revenue',         value: stats?.total_revenue || 0, icon: DollarSign, trend: '+12.5%', isPrice: true  },
@@ -127,19 +127,25 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="h-80 flex items-end gap-4 p-4 bg-app-bg rounded-[32px] border-2 border-dashed border-border-subtle relative">
-            {[65, 45, 75, 55, 90, 70, 85, 40, 60, 95, 50, 80].map((h, i) => (
+            {stats?.revenueData?.map((item, i) => {
+              const maxRevenue = Math.max(...stats.revenueData.map(d => d.revenue), 1);
+              const h = (item.revenue / maxRevenue) * 100;
+              return (
               <motion.div
                 key={i}
                 initial={{ height: 0 }}
-                animate={{ height: `${h}%` }}
-                className="flex-grow bg-accent/20 rounded-t-xl relative group"
+                animate={{ height: `${h || 5}%` }}
+                className="flex-grow bg-accent/20 rounded-t-xl relative group flex flex-col justify-end"
               >
                 <div className="absolute inset-0 bg-accent rounded-t-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-[8px] font-black opacity-0 group-hover:opacity-100 transition-opacity text-text-primary">
-                  {formatPrice(h * 100)}
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-[8px] font-black opacity-0 group-hover:opacity-100 transition-opacity text-text-primary whitespace-nowrap bg-card-bg px-2 py-1 rounded shadow-lg z-10">
+                  {formatPrice(item.revenue)}
+                </div>
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[8px] font-bold text-text-muted whitespace-nowrap">
+                  {item.name}
                 </div>
               </motion.div>
-            ))}
+            )})}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
               <Activity className="h-32 w-32 text-accent" />
             </div>

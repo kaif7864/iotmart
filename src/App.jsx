@@ -22,7 +22,10 @@ const Cart = lazy(() => import('./pages/shop/Cart'));
 const Checkout = lazy(() => import('./pages/shop/Checkout'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
+const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const UserProfile = lazy(() => import('./pages/user/UserProfile'));
+const NotFound = lazy(() => import('./pages/public/NotFound'));
 const DeviceDashboard = lazy(() => import('./pages/DeviceDashboard'));
 const About = lazy(() => import('./pages/public/About'));
 const Contact = lazy(() => import('./pages/public/Contact'));
@@ -38,11 +41,13 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
-const AdminIoT = lazy(() => import('./pages/admin/AdminIoT'));
+// const AdminIoT = lazy(() => import('./pages/admin/AdminIoT')); // Lab type not needed
+const AdminPromos = lazy(() => import('./pages/admin/AdminPromos'));
 
 // Components
 import ChatSupport from './components/feedback/ChatSupport';
 import Toast from './components/feedback/Toast';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 const LoadingScreen = () => (
   <div className="fixed inset-0 bg-app-bg z-[999] flex flex-col p-8 lg:p-32">
@@ -55,9 +60,10 @@ const LoadingScreen = () => (
 
 function App() {
   return (
-    <AuthProvider>
-      <ComparisonProvider>
-        <CartProvider>
+    <GoogleOAuthProvider clientId="95030813967-u0po79ptsibocs7653c2nk2jiajokek8.apps.googleusercontent.com">
+      <AuthProvider>
+        <ComparisonProvider>
+          <CartProvider>
           <WishlistProvider>
           <Router>
           <Toaster position="top-center" toastOptions={{ style: { fontWeight: 'bold', fontSize: '12px' } }} />
@@ -78,6 +84,8 @@ function App() {
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/track" element={<TrackOrder />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/support" element={<Support />} />
@@ -98,20 +106,20 @@ function App() {
                   <Route path="products" element={<AdminProducts />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="users" element={<AdminUsers />} />
-                  <Route path="iot" element={<AdminIoT />} />
+                  <Route path="promos" element={<AdminPromos />} />
+                  {/* <Route path="iot" element={<AdminIoT />} /> */}
                 </Route>
               </Route>
 
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-
-          {/* <ChatSupport /> */}
         </Router>
           </WishlistProvider>
-        </CartProvider>
-      </ComparisonProvider>
-    </AuthProvider>
+          </CartProvider>
+        </ComparisonProvider>
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
 

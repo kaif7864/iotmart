@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }) => {
     return [];
   });
   
-  const [currency, setCurrency] = useState({ code: 'INR', symbol: '₹', rate: 83.5 });
+  const [currency, setCurrency] = useState({ code: 'INR', symbol: '₹', rate: 1 });
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Welcome to IoTMart', message: 'Your engineering account is now active.', type: 'info', time: 'Just now', read: false },
     { id: 2, title: 'Device Alert', message: 'Greenhouse Node 2 reported high humidity.', type: 'warning', time: '5m ago', read: false },
@@ -42,13 +42,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const currencies = {
-    INR: { code: 'INR', symbol: '₹', rate: 83.5 },
-    USD: { code: 'USD', symbol: '$', rate: 1 },
-    EUR: { code: 'EUR', symbol: '€', rate: 0.92 },
+    INR: { code: 'INR', symbol: '₹', rate: 1 },
+    USD: { code: 'USD', symbol: '$', rate: 1/83.5 },
+    EUR: { code: 'EUR', symbol: '€', rate: (1/83.5) * 0.92 },
   };
 
-  const formatPrice = (usdPrice) => {
-    const converted = usdPrice * currency.rate;
+  const formatPrice = (basePriceInr) => {
+    const converted = basePriceInr * currency.rate;
     return `${currency.symbol}${converted.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
@@ -56,9 +56,36 @@ export const AuthProvider = ({ children }) => {
     if (currencies[code]) setCurrency(currencies[code]);
   };
 
+  const googleLogin = async (credential, isSignup = false) => {
+    try {
+      // Lazy import to avoid circular dependencies if any
+      const { loginWithGoogle } = await import('../services/auth.service');
+      const data = await loginWithGoogle(credential, isSignup);
+      
+      if (data.requires_2fa) {
+        return { success: true, requires_2fa: true, data };
+      }
+      
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user_session', JSON.stringify(data.user));
+      
+      setUser(data.user);
+      setIsAdmin(data.user.role === 'admin');
+      setAddresses(data.user.addresses || []);
+      return { success: true, user: data.user };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.detail || 'Google Login failed.' };
+    }
+  };
+
   const login = async (credentials) => {
     try {
       const data = await loginUser(credentials);
+      
+      if (data.requires_2fa) {
+        return { success: true, requires_2fa: true, data };
+      }
+      
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user_session', JSON.stringify(data.user));
       
@@ -71,6 +98,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Used after successful 2FA verification
+  const completeLogin = (data) => {
+    localStorage.setItem('token', data.access_token);
+    localStorage.setItem('user_session', JSON.stringify(data.user));
+    
+    setUser(data.user);
+    setIsAdmin(data.user.role === 'admin');
+    setAddresses(data.user.addresses || []);
+  };
+
   const signup = async (userData) => {
     try {
       await signupUser(userData);
@@ -81,13 +118,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    setUser(null);
-    setIsAdmin(false);
-
-    setAddresses([]);
     localStorage.removeItem('user_session');
     localStorage.removeItem('token');
     localStorage.removeItem('iotmart_cart');
+    
+    // Dispatch event to clear other contexts BEFORE page reload
+    window.dispatchEvent(new Event('auth-logout'));
+    
+    // Set states to null after local storage is clear
+    setUser(null);
+    setIsAdmin(false);
+    setAddresses([]);
     
     // Force a full reload to clear all React Context states (like Cart, Wishlist)
     window.location.href = '/';
@@ -120,7 +161,9 @@ export const AuthProvider = ({ children }) => {
       user, 
       setUser,
       isAdmin, 
-      login, 
+      login,
+      completeLogin,
+      googleLogin, 
       signup,
       logout, 
 

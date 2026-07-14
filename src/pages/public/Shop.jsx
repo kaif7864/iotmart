@@ -6,6 +6,7 @@ import { getProducts } from '../../services/api';
 import { SkeletonGrid } from '../../components/common';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../hooks/useCart';
+import SEO from '../../components/common/SEO';
 
 const Shop = () => {
   const { onAddToCart } = useCart();
@@ -71,7 +72,8 @@ const Shop = () => {
   const displayedProducts = filteredProducts.slice(0, visibleCount);
 
   return (
-    <div className="pt-32 pb-32 min-h-screen bg-app-bg">
+    <div className="pt-24 pb-16 min-h-screen">
+      <SEO title="Shop Components | IoTMart" description="Browse our extensive inventory of IoT hardware, microcontrollers, and sensors." />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Page Header */}

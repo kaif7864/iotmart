@@ -9,7 +9,8 @@ import {
   LogOut, 
   CircuitBoard,
   Bell,
-  Cpu
+  Cpu,
+  Tag
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -21,8 +22,9 @@ const AdminSidebar = () => {
     { name: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
     { name: 'Inventory', icon: Package, path: '/admin/products' },
     { name: 'Orders', icon: ShoppingCart, path: '/admin/orders' },
+    { name: 'Promo Codes', icon: Tag, path: '/admin/promos' },
     { name: 'Customers', icon: Users, path: '/admin/users' },
-    { name: 'IoT Control', icon: Cpu, path: '/admin/iot' },
+    // { name: 'IoT Control', icon: Cpu, path: '/admin/iot' }, // Lab type work not needed
   ];
 
   return (
@@ -32,7 +34,7 @@ const AdminSidebar = () => {
           <CircuitBoard className="h-8 w-8 text-accent" />
           <span className="font-extrabold text-xl text-text-primary tracking-tight">Admin Console</span>
         </div>
-
+       
         <nav className="space-y-2">
           {menuItems.map((item) => (
             <Link

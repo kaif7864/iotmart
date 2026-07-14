@@ -5,7 +5,7 @@ import {
   Loader2, Camera,
   BrainCircuit, TrendingUp, X
 } from 'lucide-react';
-import { getProducts, createProduct, updateProduct, deleteProduct, getAIChatReply } from '../../services/api';
+import { getProducts, createProduct, updateProduct, deleteProduct, getAIChatReply, uploadProductImage } from '../../services/api';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { Skeleton, SkeletonTableRows, Button, Input, Modal, ConfirmModal, Badge, Table, EmptyState } from '../../components/common';
@@ -20,6 +20,7 @@ const AdminProducts = () => {
   const [currentProduct, setCurrentProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: '', price: '', category: '', description: '', image: '', inStock: true, stockQuantity: 100, specs: []
   });
@@ -34,6 +35,27 @@ const AdminProducts = () => {
       console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    
+    try {
+      const res = await uploadProductImage(fd);
+      if (res.data.success) {
+        setFormData(prev => ({ ...prev, image: 'http://localhost:8000' + res.data.image_url }));
+        toast.success("Image uploaded!");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Upload failed");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -202,16 +224,16 @@ const AdminProducts = () => {
             {
               header: 'Stock',
               render: (product) => {
-                const stock = product.stockQuantity || 45;
-                const color = stock < 20 ? 'status-danger' : stock < 50 ? 'status-warning' : 'status-success';
+                const stock = product.stockQuantity !== undefined ? product.stockQuantity : 45;
+                const color = stock < 5 ? 'status-danger' : stock < 20 ? 'status-warning' : 'status-success';
                 return (
-                  <div className="space-y-2 max-w-[120px]">
+                  <div className="space-y-2 min-w-[120px]">
                     <div className="flex justify-between items-center label-caps">
-                      <span className={`text-${color}`}>{stock}u</span>
-                      <span className="text-text-muted">{stock}%</span>
+                      <span className={`text-${color} font-black`}>{stock} UNITS</span>
+                      {stock < 5 && <span className="bg-status-danger text-text-inverse text-[8px] px-1.5 py-0.5 rounded-sm animate-pulse">LOW</span>}
                     </div>
                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full bg-${color}`} style={{ width: `${Math.min(100, stock)}%` }} />
+                      <div className={`h-full rounded-full bg-${color}`} style={{ width: `${Math.min(100, (stock / 100) * 100)}%` }} />
                     </div>
                   </div>
                 );
@@ -245,8 +267,26 @@ const AdminProducts = () => {
           <div className="space-y-6">
             <Input label="Module Name" type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Unit Price ($)" type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} required />
-              <Input label="Category" type="text" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} required />
+              <Input label="Unit Price (₹)" type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} required />
+              <div>
+                <label className="label-caps block mb-3">Category</label>
+                <select 
+                  value={formData.category} 
+                  onChange={(e) => setFormData({...formData, category: e.target.value})} 
+                  className="field-input w-full appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a0a0a0%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_auto] bg-no-repeat bg-[position:right_1rem_center]"
+                  required
+                >
+                  <option value="" disabled>Select Category</option>
+                  <option value="Microcontrollers">Microcontrollers</option>
+                  <option value="Sensors">Sensors</option>
+                  <option value="Actuators">Actuators</option>
+                  <option value="Connectivity">Connectivity</option>
+                  <option value="Power">Power</option>
+                  <option value="Accessories">Accessories</option>
+                  <option value="Displays">Displays</option>
+                  <option value="Robotics">Robotics</option>
+                </select>
+              </div>
             </div>
             <Input label="Stock Quantity" type="number" value={formData.stockQuantity} onChange={(e) => setFormData({...formData, stockQuantity: e.target.value})} required />
             <div>
@@ -256,8 +296,22 @@ const AdminProducts = () => {
           </div>
           <div className="space-y-6">
             <div className="relative">
-              <Input label="Visual Asset URL" type="text" value={formData.image} onChange={(e) => setFormData({...formData, image: e.target.value})} required />
-              <div className="absolute right-4 top-[38px] text-text-muted"><Camera className="h-5 w-5" /></div>
+              <label className="label-caps block mb-3">Visual Asset</label>
+              <div className="flex gap-2 items-center">
+                <input 
+                  type="text" 
+                  value={formData.image} 
+                  onChange={(e) => setFormData({...formData, image: e.target.value})} 
+                  placeholder="Image URL or upload" 
+                  className="field-input flex-1" 
+                  required 
+                />
+                <label className="cursor-pointer bg-surface hover:bg-surface-hover w-12 h-12 flex items-center justify-center rounded-sm border border-border-main transition-colors">
+                  <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={isUploading} />
+                  {isUploading ? <Loader2 className="h-5 w-5 animate-spin text-accent" /> : <Camera className="h-5 w-5 text-text-muted hover:text-accent" />}
+                </label>
+              </div>
+              {formData.image && <img src={formData.image} alt="Preview" className="w-full h-32 object-cover rounded-sm mt-4 border border-border-main" />}
             </div>
             <div className="card p-6 rounded-sm flex items-center justify-between">
               <div>

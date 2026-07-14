@@ -1,67 +1,28 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
-import httpx
-import os
-import uuid
-from core.security import get_current_user
+from api.deps import get_current_user
+from services.payment_service import payment_service
+from core.database import db
 
 router = APIRouter()
 
-CASHFREE_APP_ID = os.getenv("CASHFREE_APP_ID", "TEST_APP_ID")
-CASHFREE_SECRET_KEY = os.getenv("CASHFREE_SECRET_KEY", "TEST_SECRET_KEY")
-CASHFREE_URL = "https://sandbox.cashfree.com/pg/orders" # Sandbox endpoint
-
-class PaymentSessionRequest(BaseModel):
-    order_amount: float
-    customer_id: str
-    customer_phone: str
-    customer_email: str
-    customer_name: str
+from schemas.payment import PaymentSessionRequest
 
 @router.post("/cashfree/create-session")
 async def create_cashfree_session(req: PaymentSessionRequest, user: dict = Depends(get_current_user)):
-    order_id = f"ORDER_{uuid.uuid4().hex[:12]}"
+    result = await payment_service.create_session(
+        order_amount=req.order_amount,
+        order_currency=req.order_currency,
+        customer_id=req.customer_id,
+        customer_phone=req.customer_phone,
+        customer_email=req.customer_email,
+        customer_name=req.customer_name
+    )
     
-    headers = {
-        "x-client-id": CASHFREE_APP_ID,
-        "x-client-secret": CASHFREE_SECRET_KEY,
-        "x-api-version": "2023-08-01",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "order_id": order_id,
-        "order_amount": req.order_amount,
-        "order_currency": "INR",
-        "customer_details": {
-            "customer_id": req.customer_id,
-            "customer_phone": req.customer_phone,
-            "customer_email": req.customer_email,
-            "customer_name": req.customer_name
-        },
-        "order_meta": {
-            "return_url": "http://localhost:5173/profile"
-        }
-    }
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.post(CASHFREE_URL, json=payload, headers=headers)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=f"Cashfree API Error: {result['error']}")
         
-    if response.status_code == 200:
-        data = response.json()
-        return {
-            "payment_session_id": data.get("payment_session_id"),
-            "order_id": order_id
-        }
-    else:
-        raise HTTPException(status_code=400, detail=f"Cashfree API Error: {response.text}")
-
-import hmac
-import hashlib
-import base64
-from fastapi import Request
-
-CASHFREE_WEBHOOK_SECRET = os.getenv("CASHFREE_WEBHOOK_SECRET")
+    return result
 
 @router.post("/cashfree/webhook")
 async def cashfree_webhook(request: Request):
@@ -69,28 +30,21 @@ async def cashfree_webhook(request: Request):
     signature = request.headers.get("x-webhook-signature")
     timestamp = request.headers.get("x-webhook-timestamp")
     
-    if not signature or not timestamp:
-        raise HTTPException(status_code=400, detail="Missing signature or timestamp")
-        
-    # Verify Signature
-    # Formula: BASE64(HMAC_SHA256(timestamp + raw_payload, webhook_secret))
-    data_to_sign = timestamp.encode('utf-8') + payload
-    
-    expected_hmac = hmac.new(
-        CASHFREE_WEBHOOK_SECRET.encode('utf-8'),
-        data_to_sign,
-        hashlib.sha256
-    ).digest()
-    
-    expected_signature = base64.b64encode(expected_hmac).decode('utf-8')
-    
-    if signature != expected_signature:
-        raise HTTPException(status_code=400, detail="Invalid signature")
+    if not payment_service.verify_webhook_signature(payload, signature, timestamp):
+        raise HTTPException(status_code=400, detail="Invalid signature or missing headers")
         
     data = await request.json()
     print("Valid Cashfree Webhook Received:", data)
     
-    # Process webhook events here (e.g. PAYMENT_SUCCESS, PAYMENT_FAILED)
-    # Update orders/transactions collection accordingly
-    
+    event_type = data.get("type")
+    if event_type == "PAYMENT_SUCCESS_WEBHOOK":
+        order_info = data.get("data", {}).get("order", {})
+        order_id_string = order_info.get("order_id")
+        
+        if order_id_string:
+            # Note: order_id_string is the Cashfree ORDER_... we generated.
+            # In a real app we'd query our db for this Cashfree order_id and update status.
+            print(f"Payment successful for {order_id_string}")
+            # db.orders.update_one({"payment_id": order_id_string}, {"$set": {"status": "Paid"}})
+            
     return {"status": "OK"}

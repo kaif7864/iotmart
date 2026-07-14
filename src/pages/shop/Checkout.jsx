@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { placeOrder } from '../../services/api';
+import { placeOrder, createTransaction } from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../hooks/useCart';
 import { 
@@ -11,11 +11,21 @@ import {
 } from 'lucide-react';
 import { load } from '@cashfreepayments/cashfree-js';
 import apiClient from '../../services/api.client';
+import AddAddressModal from '../../components/profile/AddAddressModal';
+
+const INDIAN_STATES = [
+  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", 
+  "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Goa", 
+  "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", "Karnataka", 
+  "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", 
+  "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", 
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
+];
 
 let cashfree;
 const initializeSDK = async () => {
     cashfree = await load({
-        mode: "sandbox" 
+        mode: import.meta.env.VITE_CASHFREE_MODE || "sandbox"
     });
 };
 initializeSDK();
@@ -28,21 +38,55 @@ const Checkout = () => {
   const [orderComplete, setOrderComplete] = useState(false);
   const [address, setAddress] = useState('');
   const [isAddingNewAddress, setIsAddingNewAddress] = useState(!addresses || addresses.length === 0);
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [newAddr, setNewAddr] = useState({ 
+    type: 'Home', name: '', phone: '', pincode: '', state: '', city: '', house: '', area: '', landmark: '' 
+  });
   const [paymentMethod, setPaymentMethod] = useState('CARD'); // Default to Card/Razorpay
   const [deliveryOption, setDeliveryOption] = useState('STANDARD');
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryCharges = {
-    'STANDARD': subtotal > 50 ? 0 : 5,
-    'EXPRESS': 15,
-    'PRIORITY': 25
+    'STANDARD': subtotal > 500 ? 0 : 50,
+    'EXPRESS': 150,
+    'PRIORITY': 250
   };
   const shipping = deliveryCharges[deliveryOption];
   const tax = subtotal * 0.18;
   const discountAmount = (subtotal * discount) / 100;
   const total = subtotal + shipping + tax - discountAmount;
 
+  const { addAddress } = useAuth();
+  
+  const handleAddAddress = (e) => {
+    e.preventDefault();
+    
+    // Basic Form Validation
+    if (!/^\d{10}$/.test(newAddr.phone)) {
+      alert("Please enter a valid 10-digit phone number.");
+      return;
+    }
+    if (!/^\d{6}$/.test(newAddr.pincode)) {
+      alert("Please enter a valid 6-digit PIN code.");
+      return;
+    }
+    if (newAddr.name.trim().length < 2) {
+      alert("Please enter a valid name.");
+      return;
+    }
 
+    const formattedAddress = `${newAddr.name}\n${newAddr.house}, ${newAddr.area}\n${newAddr.city}, ${newAddr.state} - ${newAddr.pincode}\n${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.phone}`;
+
+    addAddress({
+      type: newAddr.type,
+      address: formattedAddress
+    });
+    
+    setAddress(formattedAddress);
+    setShowAddAddress(false);
+    setIsAddingNewAddress(false);
+    setNewAddr({ type: 'Home', name: '', phone: '', pincode: '', state: '', city: '', house: '', area: '', landmark: '' });
+  };
 
   const handleCashfreePayment = async () => {
     if (!address.trim()) {
@@ -51,8 +95,11 @@ const Checkout = () => {
     }
     setLoading(true);
     try {
+      // Send the amount in the currently selected currency to match the UI
+      const displayTotal = total * currency.rate;
       const res = await apiClient.post('/payments/cashfree/create-session', {
-        order_amount: total,
+        order_amount: displayTotal,
+        order_currency: currency.code,
         customer_id: user?._id || "guest",
         customer_phone: user?.phone || "9999999999",
         customer_email: user?.email || "guest@iotmart.com",
@@ -66,9 +113,22 @@ const Checkout = () => {
           redirectTarget: "_modal",
       };
       
-      cashfree.checkout(checkoutOptions).then((result) => {
+      cashfree.checkout(checkoutOptions).then(async (result) => {
           if(result.error){
               alert("Payment failed: " + result.error.message);
+              try {
+                await createTransaction({
+                  user_id: user?._id || "guest",
+                  order_id: order_id,
+                  amount: displayTotal,
+                  currency: currency.code,
+                  status: "Failed",
+                  payment_method: paymentMethod,
+                  payment_id: result.error.message || "Failed"
+                });
+              } catch (e) {
+                console.error("Failed to log transaction", e);
+              }
           }
           if(result.paymentDetails){
               processOrder("PAID", result.paymentDetails.paymentMessage || order_id);
@@ -81,6 +141,8 @@ const Checkout = () => {
       setLoading(false);
     }
   };
+
+  const [createdOrderId, setCreatedOrderId] = useState(null);
 
   const processOrder = async (status, paymentId = "COD") => {
     setLoading(true);
@@ -102,7 +164,8 @@ const Checkout = () => {
         shipping_method: deliveryOption
       };
 
-      await placeOrder(orderData);
+      const res = await placeOrder(orderData);
+      setCreatedOrderId(res._id || res.id || "Processing");
       setOrderComplete(true);
       onClearCart();
     } catch (error) {
@@ -136,7 +199,8 @@ const Checkout = () => {
           </div>
           <h1 className="heading-page mb-4">Manifest Deployed</h1>
           <p className="text-text-secondary mb-10 text-lg font-medium max-w-md mx-auto">
-            Your hardware components are being packed. Track your shipment in the "My Orders" section.
+            Your hardware components are being packed. Track your shipment in the "My Orders" section.<br/><br/>
+            <span className="text-accent font-bold">Order ID: {createdOrderId}</span>
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button onClick={() => navigate('/profile')} className="btn-premium py-4 text-xs">
@@ -189,7 +253,7 @@ const Checkout = () => {
               </h3>
               
               <div className="space-y-8">
-                {addresses.length > 0 && (
+                {addresses && addresses.length > 0 && (
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Saved Addresses</label>
@@ -233,14 +297,17 @@ const Checkout = () => {
                     animate={{ opacity: 1, height: 'auto' }}
                     className="space-y-3"
                   >
-                    <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">New Shipping Address</label>
-                    <textarea 
-                      rows="3"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Enter full coordinate details (Street, City, State, ZIP)..."
-                      className="field-input resize-none w-full p-5 rounded-[16px] border-2 border-border-main bg-app-bg text-sm focus:border-accent outline-none transition-all"
-                    ></textarea>
+                    <button
+                      onClick={() => setShowAddAddress(true)}
+                      className="w-full py-4 px-6 border-2 border-dashed border-accent text-accent font-bold rounded-[16px] hover:bg-accent/5 transition-all flex items-center justify-center gap-2"
+                    >
+                      <span>+ Click here to fill Address Details</span>
+                    </button>
+                    {address && !isAddingNewAddress && (
+                      <div className="p-4 bg-app-bg border border-border-main rounded-xl mt-4">
+                        <p className="text-xs text-text-secondary whitespace-pre-wrap">{address}</p>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </div>
@@ -379,6 +446,15 @@ const Checkout = () => {
           </div>
         </div>
       </div>
+
+      <AddAddressModal 
+        showAddAddress={showAddAddress} 
+        setShowAddAddress={setShowAddAddress} 
+        newAddr={newAddr} 
+        setNewAddr={setNewAddr} 
+        handleAddAddress={handleAddAddress} 
+        INDIAN_STATES={INDIAN_STATES}
+      />
     </div>
   );
 };
