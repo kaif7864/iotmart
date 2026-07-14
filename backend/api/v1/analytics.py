@@ -19,22 +19,58 @@ async def get_dashboard_stats(range: str = "7D"):
     else:
         threshold = datetime.min
         
-    orders_cursor = db.orders.find({"created_at": {"$gte": threshold}})
-    orders = await orders_cursor.to_list(10000)
+    orders_raw = await db.orders.find().to_list(10000)
     users = await db.users.find().to_list(10000)
     products = await db.products.find().to_list(10000)
     
-    total_revenue = sum(order.get("total", 0) for order in orders)
+    # Filter in memory to handle both string and datetime types gracefully
+    orders = []
+    for order in orders_raw:
+        created = order.get("created_at")
+        if not created:
+            if range == "ALL":
+                orders.append(order)
+            continue
+            
+        if isinstance(created, str):
+            try:
+                # Parse basic ISO format strings if they were saved that way
+                created = datetime.fromisoformat(created.replace('Z', '+00:00')).replace(tzinfo=None)
+            except:
+                pass
+                
+        if isinstance(created, datetime):
+            # Strip timezone for comparison if present
+            created = created.replace(tzinfo=None)
+            if created >= threshold:
+                orders.append(order)
+        else:
+            if range == "ALL":
+                orders.append(order)
+    users = await db.users.find().to_list(10000)
+    products = await db.products.find().to_list(10000)
+    
+    # Valid statuses for revenue calculation
+    valid_revenue_statuses = ["Processing", "Confirmed", "Paid", "Shipped", "Delivered"]
+    
+    total_revenue = sum(order.get("total", 0) for order in orders if order.get("status") in valid_revenue_statuses)
     low_stock = [p for p in products if p.get("stockQuantity", 10) < 5] 
     
     # Calculate revenue data by day/hour based on range
     revenue_map = {}
     for order in orders:
-        if "created_at" in order:
+        if "created_at" in order and order.get("status") in valid_revenue_statuses:
+            created = order["created_at"]
+            if isinstance(created, str):
+                try:
+                    created = datetime.fromisoformat(created.replace('Z', '+00:00')).replace(tzinfo=None)
+                except:
+                    created = datetime.utcnow()
+                    
             if range == "24H":
-                date_str = order["created_at"].strftime("%I %p") # Hourly
+                date_str = created.strftime("%I %p") # Hourly
             else:
-                date_str = order["created_at"].strftime("%a") # Daily abbreviated
+                date_str = created.strftime("%a") # Daily abbreviated
             
             revenue_map[date_str] = revenue_map.get(date_str, 0) + order.get("total", 0)
             
@@ -80,6 +116,7 @@ async def get_dashboard_stats(range: str = "7D"):
         "total_orders": len(orders),
         "total_users": len(users),
         "liveTraffic": 42, # Simulated
+        "low_stock": [{"name": p.get("name"), "stockQuantity": p.get("stockQuantity"), "_id": str(p["_id"])} for p in low_stock],
         "lowStockCount": len(low_stock),
         "revenueData": revenue_data,
         "topSelling": top_selling,

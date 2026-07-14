@@ -2,15 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingCart, Menu, Search, CircuitBoard, 
   User, ShieldCheck, Mic, MicOff, X, ArrowRight, Loader2, Cpu,
-  Bell, BellRing, Info, AlertTriangle
+  Bell, BellRing, Info, AlertTriangle, Download
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getProducts } from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../hooks/useCart';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 const Navbar = () => {
+  const { isInstallable, triggerInstall } = usePWAInstall();
   const { user, isAdmin, currency, changeCurrency, notifications, markAllRead } = useAuth();
   const { cartCount } = useCart();
   const navigate = useNavigate();
@@ -169,6 +171,16 @@ const Navbar = () => {
 
             <div className="h-6 w-[1px] bg-surface-hover mx-1 hidden sm:block"></div>
 
+            {/* Install App Button */}
+            {isInstallable && (
+              <button 
+                onClick={triggerInstall}
+                className="hidden md:flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-light text-white rounded-sm font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-accent/20"
+              >
+                <Download className="h-4 w-4" /> Install App
+              </button>
+            )}
+
             {/* Notifications */}
             <div className="relative">
               <button 
@@ -187,7 +199,7 @@ const Navbar = () => {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-3 w-80 bg-card-bg border border-border-main rounded-[24px] shadow-2xl overflow-hidden z-[110]"
+                    className="fixed left-4 right-4 top-20 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-3 sm:w-80 bg-card-bg border border-border-main rounded-[24px] shadow-2xl overflow-hidden z-[110]"
                   >
                     <div className="p-5 border-b border-border-subtle bg-app-bg/50 flex justify-between items-center">
                       <p className="text-[10px] font-black text-text-primary uppercase tracking-[0.2em]">Notifications</p>
@@ -244,8 +256,8 @@ const Navbar = () => {
                 </Link>
               </div>
             ) : (
-              <Link to="/login" className="px-7 py-3.5 bg-text-primary text-white rounded-sm text-[10px] font-black uppercase tracking-[0.2em] hover:bg-accent transition-all shadow-xl shadow-slate-900/10">
-                Initial Login
+              <Link to="/login" className="px-4 py-2.5 sm:px-7 sm:py-3.5 bg-text-primary text-white rounded-xl sm:rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-accent transition-all shadow-xl shadow-slate-900/10 whitespace-nowrap">
+                Login
               </Link>
             )}
 
@@ -267,23 +279,34 @@ const Navbar = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-surface-dark/90 backdrop-blur-xl z-[200] lg:hidden p-6"
+            className="fixed top-0 left-0 w-full h-[100dvh] z-[200] lg:hidden p-6 flex flex-col"
+            style={{ backgroundColor: 'rgba(15, 23, 42, 0.98)', backdropFilter: 'blur(16px)' }}
           >
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex justify-between items-center mb-8 shrink-0">
               <div className="flex items-center gap-3">
                 <CircuitBoard className="h-8 w-8 text-accent" />
                 <span className="font-black text-xl text-white uppercase">IoTMart</span>
               </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-3 bg-card-bg/10 rounded-sm text-white">
-                <X className="h-6 w-6" />
-              </button>
+              <div className="flex items-center gap-3">
+                {isInstallable && (
+                  <button 
+                    onClick={triggerInstall}
+                    className="p-3 bg-accent text-white rounded-sm font-bold text-[10px] uppercase tracking-widest flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" /> Install
+                  </button>
+                )}
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-3 bg-white/10 rounded-sm text-white">
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
             </div>
 
-            <div className="relative mb-8">
+            <div className="relative mb-8 shrink-0">
               <input 
                 type="text" 
                 placeholder="Search..." 
-                className="w-full pl-5 pr-12 py-4 bg-card-bg/5 border border-card-bg/10 rounded-[24px] text-sm font-bold text-white focus:outline-none focus:border-accent transition-all"
+                className="w-full pl-5 pr-12 py-4 bg-white/5 border border-white/10 rounded-[24px] text-sm font-bold text-white focus:outline-none focus:border-accent transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -304,19 +327,19 @@ const Navbar = () => {
               </button>
             </div>
 
-            <div className="space-y-4 overflow-y-auto max-h-[50vh] scrollbar-hide pb-20">
+            <div className="space-y-4 overflow-y-auto scrollbar-hide flex-1">
               {[
                 { name: 'Shop Inventory', path: '/shop', icon: ShoppingCart },
                 { name: 'Track Order', path: '/track', icon: ArrowRight },
                 { name: 'Support Tickets', path: '/support', icon: Info },
                 { name: 'FAQ Center', path: '/faq', icon: Info },
-                { name: 'Device Dashboard', path: '/devices', icon: Cpu },
+                // { name: 'Device Dashboard', path: '/devices', icon: Cpu },
               ].map((item) => (
                 <Link 
                   key={item.name} 
                   to={item.path} 
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-between p-6 bg-card-bg/5 rounded-[24px] border border-card-bg/10 text-white group hover:bg-accent transition-all"
+                  className="flex items-center justify-between p-6 bg-white/5 rounded-[24px] border border-white/10 text-white group hover:bg-accent transition-all"
                 >
                   <span className="text-sm font-black uppercase tracking-widest">{item.name}</span>
                   <item.icon className="h-5 w-5 text-accent group-hover:text-white" />
@@ -324,13 +347,13 @@ const Navbar = () => {
               ))}
             </div>
 
-            <div className="absolute bottom-10 left-6 right-6">
+            <div className="mt-6 shrink-0 pb-6">
               <Link 
-                to="/login" 
+                to={user ? (isAdmin ? "/admin/dashboard" : "/profile") : "/login"} 
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="w-full py-5 bg-accent text-white rounded-[24px] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-2xl shadow-accent/20"
               >
-                Access Control Panel <ShieldCheck className="h-5 w-5" />
+                {user ? (isAdmin ? "Admin Console" : "My Profile") : "Login / Register"} <ShieldCheck className="h-5 w-5" />
               </Link>
             </div>
           </motion.div>

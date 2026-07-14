@@ -161,7 +161,8 @@ const Checkout = () => {
         payment_method: paymentMethod,
         payment_id: paymentId,
         status: status === "PAID" ? "Paid" : "Pending",
-        shipping_method: deliveryOption
+        shipping_method: deliveryOption,
+        promo_code: appliedPromo || null
       };
 
       const res = await placeOrder(orderData);
@@ -197,17 +198,17 @@ const Checkout = () => {
           <div className="w-24 h-24 bg-status-success-bg rounded-full flex items-center justify-center mx-auto mb-8 border-4 border-card-bg shadow-lg">
             <CheckCircle2 className="h-12 w-12 text-status-success" />
           </div>
-          <h1 className="heading-page mb-4">Manifest Deployed</h1>
+          <h1 className="heading-page mb-4">Order Placed Successfully</h1>
           <p className="text-text-secondary mb-10 text-lg font-medium max-w-md mx-auto">
-            Your hardware components are being packed. Track your shipment in the "My Orders" section.<br/><br/>
+            Your products are being packed. Track your shipment in the "My Orders" section.<br/><br/>
             <span className="text-accent font-bold">Order ID: {createdOrderId}</span>
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button onClick={() => navigate('/profile')} className="btn-premium py-4 text-xs">
-              Monitor Orders
+              View My Orders
             </button>
             <button onClick={() => navigate('/shop')} className="btn-outline py-4 text-xs">
-              Continue Sourcing
+              Continue Shopping
             </button>
           </div>
         </motion.div>
@@ -238,7 +239,7 @@ const Checkout = () => {
           </button>
           <div>
             <h1 className="heading-page leading-none">Security <span className="text-accent">Checkout</span></h1>
-            <p className="label-caps mt-2">256-bit encrypted transaction tunnel</p>
+            <p className="label-caps mt-2">100% Secure & Encrypted Payment</p>
           </div>
         </div>
 
@@ -249,7 +250,7 @@ const Checkout = () => {
               {/* Delivery Section */}
               <section className="">
               <h3 className="heading-section flex items-center gap-3 mb-8">
-                <MapPin className="h-5 w-5 text-accent" /> Destination Node
+                <MapPin className="h-5 w-5 text-accent" /> Shipping Address
               </h3>
               
               <div className="space-y-8">
@@ -316,7 +317,7 @@ const Checkout = () => {
             {/* Delivery Options */}
             <section className="pt-12 border-t border-border-main">
               <h3 className="heading-section flex items-center gap-3 mb-8">
-                <Truck className="h-5 w-5 text-accent" /> Shipment Protocol
+                <Truck className="h-5 w-5 text-accent" /> Delivery Options
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
@@ -345,7 +346,7 @@ const Checkout = () => {
             {/* Payment Systems */}
             <section className="pt-12 border-t border-border-main">
               <h3 className="heading-section flex items-center gap-3 mb-8">
-                <CreditCard className="h-5 w-5 text-accent" /> Transaction Hub
+                <CreditCard className="h-5 w-5 text-accent" /> Payment Method
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[{ id: 'CARD', label: 'Card / UPI / NetBanking', sublabel: 'Powered by Razorpay Secure', Icon: Smartphone }, { id: 'COD', label: 'Cash on Delivery', sublabel: 'Pay after verification', Icon: Wallet }].map(opt => (

@@ -7,10 +7,10 @@ class CouponRepository:
         return db.coupons
 
     async def get_coupon_by_code(self, code: str):
-        return await self.collection.find_one({"code": code.upper()})
+        return await self.collection.find_one({"code": code.strip().upper()})
     
     async def create_coupon(self, coupon_data: dict):
-        coupon_data["code"] = coupon_data["code"].upper()
+        coupon_data["code"] = coupon_data["code"].strip().upper()
         return await self.collection.insert_one(coupon_data)
 
 coupon_repo = CouponRepository()

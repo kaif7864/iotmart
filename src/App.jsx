@@ -41,6 +41,10 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminSupport = lazy(() => import('./pages/admin/AdminSupport'));
+const AdminReviews = lazy(() => import('./pages/admin/AdminReviews'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+const AdminLogs = lazy(() => import('./pages/admin/AdminLogs'));
 // const AdminIoT = lazy(() => import('./pages/admin/AdminIoT')); // Lab type not needed
 const AdminPromos = lazy(() => import('./pages/admin/AdminPromos'));
 
@@ -66,7 +70,7 @@ function App() {
           <CartProvider>
           <WishlistProvider>
           <Router>
-          <Toaster position="top-center" toastOptions={{ style: { fontWeight: 'bold', fontSize: '12px' } }} />
+          <Toaster position="top-center" toastOptions={{ style: { fontWeight: 'bold', fontSize: '12px' } }} containerStyle={{ zIndex: 99999 }} />
           <Suspense fallback={<LoadingScreen />}>
             <Routes>
               {/* IoTLab — fullscreen, no navbar */}
@@ -106,6 +110,10 @@ function App() {
                   <Route path="products" element={<AdminProducts />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="users" element={<AdminUsers />} />
+            <Route path="support" element={<AdminSupport />} />
+            <Route path="reviews" element={<AdminReviews />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="logs" element={<AdminLogs />} />
                   <Route path="promos" element={<AdminPromos />} />
                   {/* <Route path="iot" element={<AdminIoT />} /> */}
                 </Route>

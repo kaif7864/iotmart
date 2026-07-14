@@ -24,8 +24,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if user is None:
         raise credentials_exception
         
-    if user.get("status") == "inactive":
-        raise HTTPException(status_code=403, detail="Inactive user")
+    if user.get("status") in ["inactive", "blocked"]:
+        raise HTTPException(status_code=403, detail="Account is inactive or blocked")
         
     # Return user but _id as string
     user["_id"] = str(user["_id"])

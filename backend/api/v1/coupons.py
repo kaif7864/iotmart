@@ -5,7 +5,11 @@ from datetime import datetime
 router = APIRouter()
 
 @router.post("/validate")
-async def validate_coupon(code: str = Body(..., embed=True), order_value: float = Body(..., embed=True)):
+async def validate_coupon(
+    code: str = Body(..., embed=True), 
+    order_value: float = Body(..., embed=True),
+    user_id: str = Body(None, embed=True)
+):
     coupon = await coupon_repo.get_coupon_by_code(code)
     
     if not coupon:
@@ -13,6 +17,9 @@ async def validate_coupon(code: str = Body(..., embed=True), order_value: float 
         
     if not coupon.get("is_active", True):
         raise HTTPException(status_code=400, detail="Coupon is not active")
+        
+    if user_id and user_id in coupon.get("used_by", []):
+        raise HTTPException(status_code=400, detail="You have already used this coupon")
         
     if coupon.get("valid_until"):
         valid_until = coupon["valid_until"]
@@ -40,6 +47,14 @@ from fastapi import Depends
 from api.deps import get_current_active_admin
 from core.database import db
 from bson import ObjectId
+
+@router.get("/active")
+async def get_active_coupons():
+    cursor = db.coupons.find({"is_active": True})
+    coupons = await cursor.to_list(length=10)
+    for c in coupons:
+        c["_id"] = str(c["_id"])
+    return coupons
 
 @router.get("/")
 async def get_all_coupons(current_user: dict = Depends(get_current_active_admin)):

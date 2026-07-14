@@ -25,25 +25,25 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg',
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className={`relative bg-card-bg rounded-[24px] shadow-2xl w-full ${maxWidth} overflow-hidden border border-border-main`}
+            className={`relative bg-card-bg rounded-[24px] shadow-2xl w-full ${maxWidth} max-h-[90vh] flex flex-col overflow-hidden border border-border-main`}
           >
             {/* Header */}
             {title && (
-              <div className="flex items-center justify-between px-8 py-6 border-b border-border-main bg-surface/50">
+              <div className="flex items-center justify-between px-8 py-6 border-b border-border-main bg-surface/50 shrink-0">
                 <h2 className="heading-section text-base">{title}</h2>
                 <button
                   onClick={onClose}
-                  className="w-9 h-9 flex items-center justify-center rounded-full border border-border-main bg-card-bg text-text-muted hover:text-status-danger hover:border-status-danger/30 hover:bg-status-danger-bg transition-all"
+                  className="w-9 h-9 flex items-center justify-center rounded-full border border-border-main bg-card-bg text-text-muted hover:text-status-danger hover:border-status-danger/30 hover:bg-status-danger-bg transition-all shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             )}
             {/* Body */}
-            <div className="p-8">{children}</div>
+            <div className="p-6 md:p-8 overflow-y-auto grow">{children}</div>
             {/* Footer */}
             {footer && (
-              <div className="flex items-center justify-end gap-3 px-8 py-5 border-t border-border-main bg-surface/30">
+              <div className="flex items-center justify-end gap-3 px-8 py-5 border-t border-border-main bg-surface/30 shrink-0">
                 {footer}
               </div>
             )}

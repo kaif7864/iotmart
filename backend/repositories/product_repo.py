@@ -5,11 +5,15 @@ class ProductRepository:
     def __init__(self):
         self.collection = db.products
 
-    async def get_all_products(self, skip: int = 0, limit: int = 100):
-        return await self.collection.find().skip(skip).limit(limit).to_list(length=limit)
+    async def get_all_products(self, skip: int = 0, limit: int = 100, query: dict = None):
+        if query is None:
+            query = {}
+        return await self.collection.find(query).skip(skip).limit(limit).to_list(length=limit)
 
-    async def count_products(self):
-        return await self.collection.count_documents({})
+    async def count_products(self, query: dict = None):
+        if query is None:
+            query = {}
+        return await self.collection.count_documents(query)
 
     async def get_product_by_id(self, product_id: str):
         return await self.collection.find_one({"_id": ObjectId(product_id)})

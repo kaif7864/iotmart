@@ -3,22 +3,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShieldCheck, Mail, Smartphone, Loader2, Send } from 'lucide-react';
 import { setup2FA, enable2FA, disable2FA, sendVerification } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const TwoFactorSettingsModal = ({ show, onClose }) => {
-  const { user, login } = useAuth();
+  const { user, updateUserSession } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState('select'); // select, setup_auth, verify_email
+  const [step, setStep] = useState('select');
   const [setupData, setSetupData] = useState(null);
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
 
+  // Reset everything every time modal opens or closes
   useEffect(() => {
-    if (show) {
-      setStep('select');
-      setSetupData(null);
-      setOtp('');
-      setError('');
-    }
+    setStep('select');
+    setSetupData(null);
+    setOtp('');
+    setError('');
+    setLoading(false);
   }, [show]);
 
   const handleSelectAuthenticator = async () => {
@@ -38,7 +39,7 @@ const TwoFactorSettingsModal = ({ show, onClose }) => {
     setLoading(true);
     setError('');
     try {
-      await sendVerification({ email: user.email, type: 'email' });
+      await sendVerification(user.email, 'email');
       setStep('verify_email');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to send OTP to email');
@@ -60,11 +61,9 @@ const TwoFactorSettingsModal = ({ show, onClose }) => {
         secret: type === 'authenticator' ? setupData?.secret : '',
         code: otp
       });
-      // Update local user state properly by re-calling context or updating local storage
-      const token = localStorage.getItem('token');
-      login({ ...user, is_2fa_enabled: true, two_factor_type: type }, token);
+      updateUserSession({ ...user, is_2fa_enabled: true, two_factor_type: type });
       onClose();
-      alert("2FA successfully enabled!");
+      toast.success('2FA enabled successfully!');
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid OTP code');
     }
@@ -72,14 +71,13 @@ const TwoFactorSettingsModal = ({ show, onClose }) => {
   };
 
   const handleDisable = async () => {
-    if (!window.confirm("Are you sure you want to disable 2FA? This will reduce your account security.")) return;
+    if (!window.confirm('Are you sure you want to disable 2FA? This will reduce your account security.')) return;
     setLoading(true);
     try {
       await disable2FA(user.email);
-      const token = localStorage.getItem('token');
-      login({ ...user, is_2fa_enabled: false }, token);
+      updateUserSession({ ...user, is_2fa_enabled: false, two_factor_type: null });
       onClose();
-      alert("2FA disabled.");
+      toast.success('2FA disabled.');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to disable 2FA');
     }

@@ -39,11 +39,20 @@ class ProfileUpdate(BaseModel):
 
 @router.put("/{id}/profile")
 async def update_user_profile(id: str, profile: dict = Body(...)):
-    await user_repo.update_user(id, {
+    update_data = {
         "first_name": profile.get("first_name", ""),
         "last_name": profile.get("last_name", ""),
         "phone": profile.get("phone", "")
-    })
+    }
+    
+    if "email_notifications" in profile:
+        update_data["email_notifications"] = profile.get("email_notifications")
+    if "sms_notifications" in profile:
+        update_data["sms_notifications"] = profile.get("sms_notifications")
+    if "requires_2fa" in profile:
+        update_data["requires_2fa"] = profile.get("requires_2fa")
+        
+    await user_repo.update_user(id, update_data)
     user = await user_repo.get_user_by_id(id)
     return {"success": True, "message": "Profile updated", "user": serialize_user(user)}
 
@@ -148,3 +157,13 @@ async def deactivate_account(id: str):
     await user_repo.collection.delete_one({"_id": ObjectId(id)})
     
     return {"success": True, "message": "Account completely deleted successfully"}
+
+@router.delete("/{id}")
+async def delete_user(id: str):
+    user = await user_repo.get_user_by_id(id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    await user_repo.collection.delete_one({"_id": ObjectId(id)})
+    return {"success": True, "message": "User deleted successfully"}
+

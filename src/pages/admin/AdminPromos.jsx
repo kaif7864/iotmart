@@ -93,12 +93,12 @@ const AdminPromos = () => {
 
   return (
     <div className="space-y-10">
-      <div className="flex flex-col md:flex-row justify-between items-end gap-6 pb-8 border-b border-border-main">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-8 border-b border-border-main">
         <div>
           <p className="label-caps text-accent mb-2">Marketing Hub</p>
           <h1 className="heading-page">Promo <span className="text-accent">Codes</span></h1>
         </div>
-        <Button onClick={() => { resetForm(); setIsModalOpen(true); }} className="h-14">
+        <Button onClick={() => { resetForm(); setIsModalOpen(true); }} className="h-14 w-full md:w-auto">
           <Plus className="h-5 w-5 mr-2" /> Create Promo
         </Button>
       </div>
@@ -111,6 +111,46 @@ const AdminPromos = () => {
         <Table
           keyField="_id"
           data={promos}
+          mobileRenderer={(p) => (
+            <div className="card rounded-[24px] p-5 space-y-5 border border-border-main bg-card-bg shadow-sm">
+              <div className="flex justify-between items-start">
+                <span className="font-mono font-black text-lg tracking-widest text-text-primary bg-surface px-3 py-1 rounded-md border border-border-subtle">{p.code}</span>
+                <div className={`flex items-center gap-1.5 label-caps px-2.5 py-1 rounded-full ${p.is_active ? 'bg-status-success-bg text-status-success' : 'bg-status-danger-bg text-status-danger'}`}>
+                  {p.is_active ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                  {p.is_active ? 'Active' : 'Inactive'}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 bg-app-bg p-4 rounded-[16px] border border-border-subtle mb-4">
+                <div>
+                  <p className="text-[9px] text-text-muted font-black uppercase tracking-widest mb-1">Discount</p>
+                  <p className="text-sm font-black text-status-success">{p.discount_percentage}% OFF</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-text-muted font-black uppercase tracking-widest mb-1">Constraints</p>
+                  <div className="text-[10px] text-text-secondary font-medium leading-tight mt-1">
+                    Min: ₹{p.min_order_value} <br/>
+                    Max: {p.max_discount_amount ? `₹${p.max_discount_amount}` : 'None'}
+                  </div>
+                </div>
+                <div className="col-span-2 border-t border-border-subtle pt-3 mt-1">
+                  <p className="text-[9px] text-text-muted font-black uppercase tracking-widest mb-1">Usage & Savings</p>
+                  <p className="text-xs font-bold text-text-primary">
+                    {p.usage_count || 0} Uses • ₹{(p.total_discount_given || 0).toFixed(2)} Saved
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => handleEdit(p)} className="flex-1 py-3 bg-app-bg hover:bg-accent hover:text-white text-text-primary font-black text-[10px] uppercase tracking-widest rounded-[12px] transition-all border border-border-main flex items-center justify-center gap-2">
+                  <Edit2 className="h-3 w-3" /> Edit
+                </button>
+                <button onClick={() => handleDelete(p._id)} className="flex-1 py-3 bg-app-bg hover:bg-status-danger hover:text-white text-status-danger font-black text-[10px] uppercase tracking-widest rounded-[12px] transition-all border border-border-main flex items-center justify-center gap-2">
+                  <Trash2 className="h-3 w-3" /> Delete
+                </button>
+              </div>
+            </div>
+          )}
           columns={[
             {
               header: 'Code',
@@ -125,7 +165,17 @@ const AdminPromos = () => {
               render: (p) => (
                 <div className="text-xs text-text-muted">
                   Min: ₹{p.min_order_value} <br/>
-                  Max: ₹{p.max_discount_amount || 'None'}
+                  Max: {p.max_discount_amount ? `₹${p.max_discount_amount}` : 'None'}
+                </div>
+              )
+            },
+            {
+              header: 'Usage & Savings',
+              render: (p) => (
+                <div className="text-xs">
+                  <span className="font-bold text-text-primary">{p.usage_count || 0} Uses</span>
+                  <br />
+                  <span className="text-status-success font-medium">₹{(p.total_discount_given || 0).toFixed(2)} Saved</span>
                 </div>
               )
             },
@@ -141,11 +191,11 @@ const AdminPromos = () => {
             {
               header: 'Actions',
               render: (p) => (
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => handleEdit(p)} className="w-9 h-9 flex items-center justify-center rounded-full text-text-muted hover:text-accent hover:bg-accent-light transition-all">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleEdit(p)} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border-main text-text-muted hover:text-accent hover:bg-accent/10 transition-all">
                     <Edit2 className="h-4 w-4" />
                   </button>
-                  <button onClick={() => handleDelete(p._id)} className="w-9 h-9 flex items-center justify-center rounded-full text-text-muted hover:text-status-danger hover:bg-status-danger-bg transition-all">
+                  <button onClick={() => handleDelete(p._id)} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border-main text-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-all">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

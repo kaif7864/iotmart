@@ -1,18 +1,48 @@
 import apiClient from './api.client';
-import { loginUser, signupUser, sendVerification, verifyMobile, updateIdentity, forgotPassword } from './auth.service';
+import { loginUser, signupUser, sendVerification, verifyMobile, verifyEmailOtp, updateIdentity, forgotPassword } from './auth.service';
 import { getProducts, getProductsPaginated, addProductReview, getProductById, createProduct, updateProduct, deleteProduct } from './product.service';
 import { placeOrder, getOrdersByUser, getUserOrders, getAllOrders, updateOrderStatus, updateOrderTracking, getLiveTracking, refundOrder } from './order.service';
-import { getUsers, updateUserRole, updateUserStatus, toggleWishlist, addAddress, removeAddress, updateUserProfile, changeUserPassword, deactivateAccount, addRecentlyViewed } from './user.service';
+import { getUsers, updateUserRole, updateUserStatus, deleteUser, toggleWishlist, addAddress, removeAddress, updateUserProfile, changeUserPassword, deactivateAccount, addRecentlyViewed } from './user.service';
 import { getDashboardStats } from './analytics.service';
 import { getAIChatReply } from './ai.service';
-import { validateCoupon } from './coupon.service';
+import { validateCoupon, getActiveCoupons } from './coupon.service';
 import { createTransaction, getUserTransactions } from './transaction.service';
+
+// ==========================================
+// Notifications API
+// ==========================================
+const getNotifications = async () => {
+    try {
+        const response = await apiClient.get('/notifications/');
+        return response.data.map(n => {
+            if (n.created_at) {
+                const date = new Date(n.created_at);
+                n.time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + date.toLocaleDateString();
+            }
+            return n;
+        });
+    } catch (error) {
+        throw error.response?.data?.detail || 'Failed to fetch notifications';
+    }
+};
+
+const markNotificationsAsRead = async () => {
+    try {
+        const response = await apiClient.put('/notifications/read-all');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data?.detail || 'Failed to mark notifications as read';
+    }
+};
 
 export {
   apiClient as default,
   validateCoupon,
+  getActiveCoupons,
   createTransaction,
   getUserTransactions,
+  getNotifications,
+  markNotificationsAsRead,
   loginUser,
   signupUser,
   getProducts,
@@ -33,6 +63,7 @@ export {
   getUsers,
   updateUserRole,
   updateUserStatus,
+  deleteUser,
   toggleWishlist,
   addAddress,
   removeAddress,
@@ -42,6 +73,7 @@ export {
   getAIChatReply,
   sendVerification,
   verifyMobile,
+  verifyEmailOtp,
   updateIdentity,
   forgotPassword,
   deactivateAccount,

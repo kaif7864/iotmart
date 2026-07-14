@@ -33,14 +33,13 @@ const AdminDashboard = () => {
     { label: 'Total Revenue',         value: stats?.total_revenue || 0, icon: DollarSign, trend: '+12.5%', isPrice: true  },
     { label: 'Active Orders',          value: stats?.total_orders  || 0, icon: ShoppingBag, trend: '+5.2%',  isPrice: false },
     { label: 'Registered Engineers',   value: stats?.total_users   || 0, icon: Users,       trend: '+8.1%',  isPrice: false },
-    { label: 'IoT Nodes Online',       value: 124,                        icon: Cpu,         trend: '+24.3%', isPrice: false },
+    { label: 'Low Stock Items',        value: stats?.low_stock?.length || 0, icon: Package,         trend: 'Needs action', isPrice: false },
   ];
 
   const systemMetrics = [
     { label: 'Broker Uptime',    val: '99.99%',   icon: ShieldCheck, colorClass: 'text-status-success' },
-    { label: 'Storage Cluster',  val: '82%',       icon: HardDrive,   colorClass: 'text-accent' },
     { label: 'API Latency',      val: '24ms',      icon: Activity,    colorClass: 'text-status-warning' },
-    { label: 'Critical Alerts',  val: '0 Active',  icon: Bell,        colorClass: 'text-text-inverse' },
+    { label: 'Low Stock Items',  val: `${stats?.low_stock?.length || 0} Alerts`,  icon: Bell,        colorClass: stats?.low_stock?.length > 0 ? 'text-status-danger' : 'text-text-inverse' },
   ];
 
   if (loading) {
@@ -151,8 +150,8 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-
-        {/* System Health */}
+{/* 
+        System Overview
         <div className="bg-surface-dark rounded-[40px] p-10 text-text-inverse shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 blur-[100px] rounded-full" />
           <h3 className="heading-section text-text-inverse mb-10 flex items-center gap-3">
@@ -172,39 +171,56 @@ const AdminDashboard = () => {
             ))}
           </div>
           <button className="w-full mt-12 py-4 bg-card-bg/10 border border-card-bg/20 rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-card-bg hover:text-text-primary transition-all">
-            System Diagnostics
+            View Diagnostics
           </button>
-        </div>
+        </div> */}
       </div>
 
-      {/* Recent Orders */}
-      <div className="card rounded-[40px] p-10">
+      {/* Critical Alerts */}
+      <div className="card rounded-[40px] p-10 border-2 border-status-danger/20">
         <div className="flex items-center justify-between mb-10">
-          <h3 className="heading-section">Live Order Stream</h3>
-          <button className="btn-ghost text-[10px]">Monitor All</button>
+          <h3 className="heading-section flex items-center gap-3 text-status-danger">
+            <Bell className="h-6 w-6" /> Low Stock Alerts
+          </h3>
+          <span className="px-4 py-1 rounded-full bg-status-danger-bg text-status-danger font-bold text-xs uppercase tracking-wider">
+            {stats?.low_stock?.length || 0} Items
+          </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-border-subtle">
-                {['Order ID', 'Customer', 'Revenue', 'Node Status'].map(h => (
-                  <th key={h} className="py-6 px-4 label-caps">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-subtle">
-              {[1, 2, 3].map(i => (
-                <tr key={i} className="hover:bg-app-bg transition-all">
-                  <td className="py-6 px-4 font-black text-xs text-text-primary uppercase">#IM-8291-{i}</td>
-                  <td className="py-6 px-4 font-bold text-xs text-text-secondary uppercase">Engineer {i}</td>
-                  <td className="py-6 px-4 font-black text-sm text-text-primary">{formatPrice(1249 * i)}</td>
-                  <td className="py-6 px-4">
-                    <Badge variant="success">Deployed</Badge>
-                  </td>
+          {stats?.low_stock && stats.low_stock.length > 0 ? (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-border-subtle">
+                  {['Product ID', 'Component Name', 'Current Stock', 'Status'].map(h => (
+                    <th key={h} className="py-6 px-4 label-caps">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border-subtle">
+                {stats.low_stock.map((item, i) => (
+                  <tr key={item._id || i} className="hover:bg-app-bg transition-all">
+                    <td className="py-6 px-4 font-black text-xs text-text-primary uppercase tracking-wider">
+                      #{item._id ? item._id.substring(0, 8) : 'UNKNOWN'}
+                    </td>
+                    <td className="py-6 px-4 font-bold text-sm text-text-secondary">
+                      {item.name}
+                    </td>
+                    <td className="py-6 px-4 font-black text-lg text-text-primary">
+                      {item.stockQuantity}
+                    </td>
+                    <td className="py-6 px-4">
+                      <Badge variant="danger">Restock Needed</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+             <div className="py-12 text-center text-text-muted">
+               <ShieldCheck className="h-12 w-12 mx-auto mb-4 text-status-success opacity-50" />
+               <p className="font-bold uppercase tracking-widest text-sm">Inventory is healthy. No critical alerts.</p>
+             </div>
+          )}
         </div>
       </div>
     </div>

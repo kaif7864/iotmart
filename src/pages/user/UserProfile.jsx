@@ -29,9 +29,12 @@ const INDIAN_STATES = [
   "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
 ];
 
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+
 const UserProfile = () => {
   const { cartItems, onAddToCart, onUpdateQuantity, onRemoveFromCart } = useCart();
   const { user, setUser, logout, addresses, addAddress, removeAddress, formatPrice, currency } = useAuth();
+  const { isInstallable, triggerInstall } = usePWAInstall();
   const { wishlist, toggleWishlist } = useWishlist();
   const [orders, setOrders] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -190,9 +193,9 @@ const UserProfile = () => {
       setIsVerifying(true);
       const res = await verifyMobile(user.email, otp);
       if (res.success) {
-        toast.success("Mobile verified successfully!");
+        toast.success("Mobile number verified successfully!");
         setShowMobileOtpInput(false);
-        const updatedUser = { ...user, mobile_verified: true };
+        const updatedUser = { ...user, phone_verified: true };
         setUser(updatedUser);
         localStorage.setItem('user_session', JSON.stringify(updatedUser));
       }
@@ -428,16 +431,16 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
 
         <div className="flex flex-col lg:flex-row min-h-[600px]">
             {/* Sidebar Navigation */}
-            <aside className="w-full lg:w-72 flex-shrink-0 bg-surface border-r border-border-subtle p-6">
-              <nav className="space-y-1 sticky top-32">
+            <aside className="w-full lg:w-72 flex-shrink-0 bg-surface lg:border-r border-b lg:border-b-0 border-border-subtle p-4 lg:p-6 overflow-hidden">
+              <nav className="flex lg:block overflow-x-auto lg:overflow-visible space-x-2 lg:space-x-0 lg:space-y-1 pb-4 lg:pb-0 scrollbar-hide lg:sticky lg:top-32">
                 {tabs.map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-4 px-5 py-4 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all ${
+                    className={`flex-shrink-0 lg:w-full flex items-center gap-2 lg:gap-4 px-4 py-3 lg:px-5 lg:py-4 rounded-full lg:rounded-sm text-[10px] font-black uppercase tracking-widest transition-all ${
                       activeTab === tab.id
                         ? 'bg-accent text-text-inverse shadow-lg shadow-accent/20'
-                        : 'text-text-secondary hover:bg-surface-hover hover:text-accent'
+                        : 'bg-card-bg lg:bg-transparent text-text-secondary hover:bg-surface-hover hover:text-accent'
                     }`}
                   >
                     <tab.icon className="h-4 w-4 flex-shrink-0" />
@@ -445,7 +448,15 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                   </button>
                 ))}
                 
-                <div className="pt-4 mt-4 border-t border-border-subtle">
+                <div className="hidden lg:block pt-4 mt-4 border-t border-border-subtle space-y-2">
+                  {isInstallable && (
+                    <button
+                      onClick={triggerInstall}
+                      className="w-full flex items-center gap-4 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-accent hover:bg-accent/10 rounded-sm transition-all text-left"
+                    >
+                      <Download className="h-4 w-4" /> Install App
+                    </button>
+                  )}
                   <button
                     onClick={logout}
                     className="w-full flex items-center gap-4 px-5 py-4 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all text-status-danger hover:bg-status-danger-bg"
@@ -458,7 +469,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
             </aside>
 
             {/* Main Dashboard Content */}
-            <main className="flex-grow p-6 md:p-10">
+            <main className="flex-grow p-4 md:p-10 min-w-0">
             <AnimatePresence mode="wait">
               {activeTab === 'dashboard' && (
                 <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card rounded-[32px] p-10 space-y-10">
@@ -678,27 +689,27 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                     <div className="space-y-4">
                       {transactions.map((txn) => (
                         <div key={txn._id} className="card rounded-[32px] overflow-hidden border border-border-main transition-all">
-                          <div 
-                            onClick={() => setExpandedTxnId(expandedTxnId === txn._id ? null : txn._id)}
-                            className="p-6 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${txn.status === 'Success' || txn.status === 'Paid' ? 'bg-status-success-bg text-status-success' : txn.status === 'Failed' ? 'bg-status-danger-bg text-status-danger' : 'bg-status-warning-bg text-status-warning'}`}>
-                                {txn.status === 'Success' || txn.status === 'Paid' ? <CheckCircle2 className="h-6 w-6" /> : txn.status === 'Failed' ? <X className="h-6 w-6" /> : <Clock className="h-6 w-6" />}
+                            <div 
+                              onClick={() => setExpandedTxnId(expandedTxnId === txn._id ? null : txn._id)}
+                              className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between cursor-pointer hover:bg-surface-hover gap-4"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${txn.status === 'Success' || txn.status === 'Paid' ? 'bg-status-success-bg text-status-success' : txn.status === 'Failed' ? 'bg-status-danger-bg text-status-danger' : 'bg-status-warning-bg text-status-warning'}`}>
+                                  {txn.status === 'Success' || txn.status === 'Paid' ? <CheckCircle2 className="h-6 w-6" /> : txn.status === 'Failed' ? <X className="h-6 w-6" /> : <Clock className="h-6 w-6" />}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold text-text-primary uppercase tracking-tight truncate">Txn: #{txn._id.slice(-8)}</p>
+                                  <p className="text-xs text-text-muted mt-1 truncate">{new Date(txn.created_at).toLocaleString()} • {txn.payment_method}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-sm font-bold text-text-primary uppercase tracking-tight">Txn ID: {txn._id}</p>
-                                <p className="text-xs text-text-muted mt-1">{new Date(txn.created_at).toLocaleString()} • {txn.payment_method}</p>
+                              <div className="text-left md:text-right flex items-center justify-between md:justify-end gap-4 w-full md:w-auto pl-16 md:pl-0">
+                                <div>
+                                  <p className="text-lg font-black text-text-primary">{formatPrice(txn.amount)}</p>
+                                  <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${txn.status === 'Success' || txn.status === 'Paid' ? 'text-status-success' : txn.status === 'Failed' ? 'text-status-danger' : 'text-status-warning'}`}>{txn.status}</p>
+                                </div>
+                                <ChevronDown className={`h-5 w-5 text-text-muted transition-transform shrink-0 ${expandedTxnId === txn._id ? 'rotate-180' : ''}`} />
                               </div>
                             </div>
-                            <div className="text-right flex items-center gap-4">
-                              <div>
-                                <p className="text-lg font-black text-text-primary">{formatPrice(txn.amount)}</p>
-                                <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${txn.status === 'Success' || txn.status === 'Paid' ? 'text-status-success' : txn.status === 'Failed' ? 'text-status-danger' : 'text-status-warning'}`}>{txn.status}</p>
-                              </div>
-                              <ChevronDown className={`h-5 w-5 text-text-muted transition-transform ${expandedTxnId === txn._id ? 'rotate-180' : ''}`} />
-                            </div>
-                          </div>
                           
                           <AnimatePresence>
                             {expandedTxnId === txn._id && (
@@ -971,13 +982,13 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                         { title: 'Restock Alerts',      desc: 'Be the first to know when items in your wishlist are back' },
                         { title: 'Promotional Offers',  desc: 'Receive exclusive discounts and tech news' }
                       ].map((pref, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 bg-surface rounded-sm border border-border-subtle">
-                          <div>
-                            <p className="font-bold text-text-primary">{pref.title}</p>
-                            <p className="text-xs text-text-muted mt-1">{pref.desc}</p>
+                        <div key={i} className="flex items-start sm:items-center justify-between p-5 bg-surface rounded-xl border border-border-subtle gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-text-primary text-sm sm:text-base">{pref.title}</p>
+                            <p className="text-xs text-text-muted mt-1 leading-relaxed pr-2">{pref.desc}</p>
                           </div>
-                          <div className="w-12 h-6 bg-accent rounded-full relative cursor-pointer">
-                            <div className="absolute right-1 top-1 w-4 h-4 bg-card-bg rounded-full shadow" />
+                          <div className="w-12 h-6 bg-accent rounded-full relative cursor-pointer shrink-0 mt-1 sm:mt-0">
+                            <div className="absolute right-1 top-1 w-4 h-4 bg-card-bg rounded-full shadow transition-all" />
                           </div>
                         </div>
                       ))}
@@ -988,7 +999,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
 
               {activeTab === 'payments' && (
                 <motion.div key="payments" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
-                  <div className="card rounded-[32px] p-10">
+                  <div className="card rounded-[32px] p-5 md:p-10">
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <CreditCard className="h-6 w-6 text-accent" /> Payment Methods
                     </h3>
@@ -1010,46 +1021,46 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
 
               {activeTab === 'security' && (
                 <motion.div key="security" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
-                  <div className="card rounded-[32px] p-10">
+                  <div className="card rounded-[32px] p-5 md:p-10">
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <Shield className="h-6 w-6 text-status-success" /> Account Security
                     </h3>
                     
                     <div className="space-y-8 max-w-2xl">
                       {/* Identity Verification */}
-                      <div className="card p-6 rounded-2xl border border-border-main">
-                        <div className="flex items-center gap-3 mb-6">
-                          <ShieldCheck className="h-6 w-6 text-accent" />
-                          <h4 className="heading-section">Identity Verification</h4>
+                      <div className="card p-4 md:p-6 rounded-2xl border border-border-main">
+                        <div className="flex items-center gap-3 mb-4 md:mb-6">
+                          <ShieldCheck className="h-6 w-6 text-accent flex-shrink-0" />
+                          <h4 className="heading-section text-lg sm:text-xl">Identity Verification</h4>
                         </div>
                         
                         <div className="space-y-4">
                           {/* Email Block */}
                           <div className="flex flex-col gap-3 p-4 bg-app-bg rounded-xl border border-border-subtle">
-                            <div className="flex items-center justify-between">
-                              <div>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                              <div className="min-w-0">
                                 <p className="font-bold text-text-primary text-sm">Email Address</p>
                                 {editIdentityMode === 'email' ? (
-                                  <div className="mt-2 flex gap-2">
-                                    <input type="email" value={editIdentityValue} onChange={(e) => setEditIdentityValue(e.target.value)} className="field-input py-2 px-3 text-xs" />
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    <input type="email" value={editIdentityValue} onChange={(e) => setEditIdentityValue(e.target.value)} className="field-input py-2 px-3 text-xs w-full sm:w-auto" />
                                     <button disabled={isUpdatingIdentity} onClick={() => handleUpdateIdentity('email')} className="btn-premium px-4 py-2 text-[10px]">Save</button>
                                     <button disabled={isUpdatingIdentity} onClick={() => setEditIdentityMode(null)} className="btn-outline px-4 py-2 text-[10px]">Cancel</button>
                                   </div>
                                 ) : (
-                                  <div className="flex items-center gap-3">
-                                    <p className="text-xs text-text-muted">{user?.email}</p>
-                                    <button onClick={() => { setEditIdentityMode('email'); setEditIdentityValue(user?.email || ''); }} className="text-[10px] text-accent uppercase font-black hover:underline">Change</button>
+                                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
+                                    <p className="text-xs text-text-muted truncate max-w-full">{user?.email}</p>
+                                    <button onClick={() => { setEditIdentityMode('email'); setEditIdentityValue(user?.email || ''); }} className="text-[10px] text-accent uppercase font-black hover:underline shrink-0 whitespace-nowrap">Change</button>
                                   </div>
                                 )}
                               </div>
                               {editIdentityMode !== 'email' && (
                                 user?.email_verified ? (
-                                  <span className="badge-success"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
+                                  <span className="badge-success self-start sm:self-auto shrink-0"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
                                 ) : (
                                   <button 
                                     onClick={handleSendEmailVerification}
                                     disabled={isSendingEmail}
-                                    className="px-4 py-2 bg-accent text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-accent-hover transition-all"
+                                    className="px-4 py-2 bg-accent text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-accent-hover transition-all self-start sm:self-auto shrink-0 whitespace-nowrap"
                                   >
                                     {isSendingEmail ? 'Sending...' : 'Verify Email'}
                                   </button>
@@ -1066,37 +1077,37 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                           
                           {/* Mobile Block */}
                           <div className="flex flex-col gap-3 p-4 bg-app-bg rounded-xl border border-border-subtle">
-                            <div className="flex items-center justify-between">
-                              <div>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                              <div className="min-w-0">
                                 <p className="font-bold text-text-primary text-sm">Mobile Number</p>
                                 {editIdentityMode === 'mobile' ? (
-                                  <div className="mt-2 flex gap-2">
-                                    <input type="text" value={editIdentityValue} onChange={(e) => setEditIdentityValue(e.target.value)} placeholder="+91..." className="field-input py-2 px-3 text-xs" />
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    <input type="text" value={editIdentityValue} onChange={(e) => setEditIdentityValue(e.target.value)} placeholder="+91..." className="field-input py-2 px-3 text-xs w-full sm:w-auto" />
                                     <button disabled={isUpdatingIdentity} onClick={() => handleUpdateIdentity('mobile')} className="btn-premium px-4 py-2 text-[10px]">Save</button>
                                     <button disabled={isUpdatingIdentity} onClick={() => setEditIdentityMode(null)} className="btn-outline px-4 py-2 text-[10px]">Cancel</button>
                                   </div>
                                 ) : (
-                                  <div className="flex items-center gap-3">
-                                    <p className="text-xs text-text-muted">{user?.phone || 'Not provided'}</p>
-                                    <button onClick={() => { setEditIdentityMode('mobile'); setEditIdentityValue(user?.phone || ''); }} className="text-[10px] text-accent uppercase font-black hover:underline">{user?.phone ? 'Change' : 'Add'}</button>
+                                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
+                                    <p className="text-xs text-text-muted truncate max-w-full">{user?.phone || 'Not provided'}</p>
+                                    <button onClick={() => { setEditIdentityMode('mobile'); setEditIdentityValue(user?.phone || ''); }} className="text-[10px] text-accent uppercase font-black hover:underline shrink-0 whitespace-nowrap">{user?.phone ? 'Change' : 'Add'}</button>
                                   </div>
                                 )}
                               </div>
                               {editIdentityMode !== 'mobile' && (
-                                user?.mobile_verified ? (
-                                  <span className="badge-success"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
+                                (user?.phone_verified || user?.mobile_verified) ? (
+                                  <span className="badge-success self-start sm:self-auto shrink-0"><CheckCircle2 className="h-3 w-3 inline mr-1"/> Verified</span>
                                 ) : (
                                   <button 
                                     onClick={!user?.phone ? () => { setEditIdentityMode('mobile'); setEditIdentityValue(''); } : handleSendMobileVerification}
                                     disabled={isSendingMobile}
-                                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded transition-all ${!user?.phone ? 'bg-status-warning text-black hover:bg-yellow-500' : 'bg-accent text-white hover:bg-accent-hover'}`}
+                                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded transition-all self-start sm:self-auto shrink-0 whitespace-nowrap ${!user?.phone ? 'bg-status-warning text-black hover:bg-yellow-500' : 'bg-accent text-white hover:bg-accent-hover'}`}
                                   >
                                     {!user?.phone ? 'Add Mobile' : isSendingMobile ? 'Sending...' : 'Verify Mobile'}
                                   </button>
                                 )
                               )}
                             </div>
-                            {showMobileOtpInput && !user?.mobile_verified && (
+                            {showMobileOtpInput && !(user?.phone_verified || user?.mobile_verified) && (
                               <div className="p-4 bg-surface rounded-lg border border-border-subtle mt-2 flex gap-3">
                                 <input 
                                   type="text" 
@@ -1120,7 +1131,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                       </div>
 
                       <div className="grid grid-cols-1 gap-6">
-                        <div className="card p-6 rounded-2xl flex flex-col gap-4">
+                        <div className="card p-4 md:p-6 rounded-2xl flex flex-col gap-4">
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="font-black text-text-primary uppercase tracking-tight mb-1">Password</p>

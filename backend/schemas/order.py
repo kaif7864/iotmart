@@ -18,6 +18,7 @@ class OrderBase(BaseModel):
     payment_id: Optional[str] = None
     tracking_id: Optional[str] = None
     shipping_method: str = "Standard"
+    promo_code: Optional[str] = None
 
 class OrderCreate(OrderBase):
     pass

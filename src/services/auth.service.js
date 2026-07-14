@@ -25,6 +25,11 @@ export const verifyMobile = async (email, otp) => {
   return response.data;
 };
 
+export const verifyEmailOtp = async (email, otp, new_email) => {
+  const response = await apiClient.post('/auth/verify-email-otp', { email, otp, new_email });
+  return response.data;
+};
+
 export const updateIdentity = async (user_id, email, phone) => {
   const response = await apiClient.put('/auth/update-identity', { user_id, email, phone });
   return response.data;

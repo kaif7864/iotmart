@@ -100,7 +100,7 @@ const Home = () => {
           </motion.div>
         </AnimatePresence>
 
-        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-24 md:py-0">
           <motion.div
             key={`content-${heroIndex}`}
             initial={{ opacity: 0, x: -30 }}

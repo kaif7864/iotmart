@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
-import { getUsers, addAddress as apiAddAddress, removeAddress as apiRemoveAddress, loginUser, signupUser } from '../services/api';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getUsers, addAddress as apiAddAddress, removeAddress as apiRemoveAddress, loginUser, signupUser, getNotifications, markNotificationsAsRead } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -28,17 +28,30 @@ export const AuthProvider = ({ children }) => {
   });
   
   const [currency, setCurrency] = useState({ code: 'INR', symbol: '₹', rate: 1 });
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Welcome to IoTMart', message: 'Your engineering account is now active.', type: 'info', time: 'Just now', read: false },
-    { id: 2, title: 'Device Alert', message: 'Greenhouse Node 2 reported high humidity.', type: 'warning', time: '5m ago', read: false },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+
+  // Fetch notifications on load if user is logged in
+  useEffect(() => {
+    if (user) {
+      getNotifications()
+        .then(data => setNotifications(data))
+        .catch(err => console.error("Failed to load notifications:", err));
+    } else {
+      setNotifications([]);
+    }
+  }, [user]);
 
   const addNotification = (notif) => {
     setNotifications(prev => [{ ...notif, id: Date.now(), read: false, time: 'Just now' }, ...prev]);
   };
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllRead = async () => {
+    try {
+      await markNotificationsAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error("Failed to mark read:", err);
+    }
   };
 
   const currencies = {
@@ -108,6 +121,11 @@ export const AuthProvider = ({ children }) => {
     setAddresses(data.user.addresses || []);
   };
 
+  const updateUserSession = (updatedUser) => {
+    localStorage.setItem('user_session', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   const signup = async (userData) => {
     try {
       await signupUser(userData);
@@ -161,6 +179,7 @@ export const AuthProvider = ({ children }) => {
       user, 
       setUser,
       isAdmin, 
+      updateUserSession,
       login,
       completeLogin,
       googleLogin, 

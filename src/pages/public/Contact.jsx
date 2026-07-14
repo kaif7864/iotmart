@@ -1,7 +1,34 @@
+import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageSquare, Clock, HelpCircle, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Contact = () => {
+  const [formData, setFormData] = useState({ name: '', email: '', subject: 'Technical Inquiry', message: '' });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      // Create api/support on backend
+      const res = await fetch('http://localhost:8000/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        alert('Message sent successfully! We will get back to you soon.');
+        setFormData({ name: '', email: '', subject: 'Technical Inquiry', message: '' });
+      } else {
+        alert('Failed to send message.');
+      }
+    } catch (error) {
+      alert('Error sending message.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="pt-32 pb-32 min-h-screen bg-app-bg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -39,12 +66,15 @@ const Contact = () => {
 
           <div className="bg-card-bg p-8 md:p-12 rounded-sm border border-border-main shadow-2xl">
             <h3 className="text-2xl font-bold text-text-primary mb-8 tracking-tight uppercase">Send a Message</h3>
-            <form className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-3">Full Name</label>
                   <input 
                     type="text" 
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
                     className="w-full px-5 py-4 bg-app-bg border border-border-main rounded-sm text-sm text-text-primary focus:outline-none focus:border-accent transition-all"
                     placeholder="John Doe"
                   />
@@ -53,6 +83,9 @@ const Contact = () => {
                   <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-3">Email Address</label>
                   <input 
                     type="email" 
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
                     className="w-full px-5 py-4 bg-app-bg border border-border-main rounded-sm text-sm text-text-primary focus:outline-none focus:border-accent transition-all"
                     placeholder="john@example.com"
                   />
@@ -60,7 +93,11 @@ const Contact = () => {
               </div>
               <div>
                 <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-3">Subject</label>
-                <select className="w-full px-5 py-4 bg-app-bg border border-border-main rounded-sm text-sm text-text-primary focus:outline-none focus:border-accent transition-all">
+                <select 
+                  value={formData.subject}
+                  onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                  className="w-full px-5 py-4 bg-app-bg border border-border-main rounded-sm text-sm text-text-primary focus:outline-none focus:border-accent transition-all"
+                >
                   <option>Technical Inquiry</option>
                   <option>Order Support</option>
                   <option>Bulk/Wholesale Inquiry</option>
@@ -72,13 +109,16 @@ const Contact = () => {
                 <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-3">Message</label>
                 <textarea 
                   rows="5"
+                  required
+                  value={formData.message}
+                  onChange={(e) => setFormData({...formData, message: e.target.value})}
                   className="w-full px-5 py-4 bg-app-bg border border-border-main rounded-sm text-sm text-text-primary focus:outline-none focus:border-accent transition-all resize-none"
                   placeholder="How can we help you?"
                 ></textarea>
               </div>
-              <button className="w-full btn-premium py-5 text-sm flex items-center justify-center gap-3">
+              <button disabled={loading} className="w-full btn-premium py-5 text-sm flex items-center justify-center gap-3 disabled:opacity-50">
                 <Send className="h-4 w-4" />
-                SEND MESSAGE
+                {loading ? 'SENDING...' : 'SEND MESSAGE'}
               </button>
             </form>
           </div>

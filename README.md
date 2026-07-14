@@ -1,16 +1,67 @@
-# React + Vite
+# IoTMart (Frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+IoTMart is a premium e-commerce platform dedicated to providing industrial IoT hardware, microcontrollers, and development boards. 
+This directory contains the **Frontend** of the application.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Framework**: React 18 with Vite
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Routing**: React Router DOM
+- **State Management**: Context API
+- **PWA**: vite-plugin-pwa (Fully Installable App)
+- **Icons**: Lucide React
 
-## React Compiler
+## Key Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 🛒 **Dynamic E-Commerce Shop**: Browse hardware, filters, and dynamic search.
+- 💳 **Secure Checkout**: Cart management and integration with Razorpay/Cashfree (Mock/Real).
+- 🔐 **Authentication**: User & Admin secure login, email & mobile OTP verification.
+- 👨‍💻 **User Profile**: Track orders, view transaction receipts, download invoices, and manage 2FA settings.
+- 🛡️ **Admin Dashboard**: Comprehensive control panel to manage users, inventory (products), analytics, and system logs.
+- 📱 **Progressive Web App (PWA)**: Can be installed on desktops and mobile devices natively.
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
+
+### Installation
+
+1. Clone the repository and navigate to the project root:
+   ```bash
+   cd iot-ecommerce
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Configure Environment Variables:
+   Create a `.env` file in the root directory:
+   ```env
+   VITE_API_URL=http://localhost:8000/api
+   ```
+   *(Update the URL to your deployed backend URL in production).*
+
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Build for Production:
+   ```bash
+   npm run build
+   ```
+   *The optimized output will be generated in the `dist/` folder.*
+
+## Project Structure
+- `/src/components` - Reusable UI components (admin, navigation, profile, layout)
+- `/src/context` - Global state providers (Auth, Cart, Wishlist)
+- `/src/hooks` - Custom React hooks (usePWAInstall, useCart)
+- `/src/pages` - Main page views (Shop, Profile, Admin Dashboard)
+- `/src/services` - API client handlers to communicate with the backend
+- `/src/utils` - Helper functions (PDF generation, formatters)

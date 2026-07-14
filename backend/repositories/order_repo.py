@@ -6,7 +6,7 @@ class OrderRepository:
         self.collection = db.orders
 
     async def get_all_orders(self, limit: int = 1000):
-        return await self.collection.find().to_list(length=limit)
+        return await self.collection.find().sort("created_at", -1).to_list(length=limit)
 
     async def get_orders_by_user(self, user_id: str):
         return await self.collection.find({"user_id": user_id}).to_list(length=1000)

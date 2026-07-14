@@ -45,6 +45,14 @@ async def cashfree_webhook(request: Request):
             # Note: order_id_string is the Cashfree ORDER_... we generated.
             # In a real app we'd query our db for this Cashfree order_id and update status.
             print(f"Payment successful for {order_id_string}")
-            # db.orders.update_one({"payment_id": order_id_string}, {"$set": {"status": "Paid"}})
+            
+            # Find the transaction
+            transaction = await db.transactions.find_one({"payment_id": order_id_string})
+            if transaction:
+                # Update transaction
+                await db.transactions.update_one({"_id": transaction["_id"]}, {"$set": {"status": "Success"}})
+                # Update order
+                from bson import ObjectId
+                await db.orders.update_one({"_id": ObjectId(transaction["order_id"])}, {"$set": {"status": "Paid", "payment_status": "Paid"}})
             
     return {"status": "OK"}

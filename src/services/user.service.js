@@ -15,6 +15,11 @@ export const updateUserStatus = async (id, status) => {
   return response.data;
 };
 
+export const deleteUser = async (id) => {
+  const response = await apiClient.delete(`/users/${id}`);
+  return response.data;
+};
+
 export const toggleWishlist = async (userId, productId) => {
   const response = await apiClient.post(`/users/${userId}/wishlist`, { product_id: productId });
   return response.data;

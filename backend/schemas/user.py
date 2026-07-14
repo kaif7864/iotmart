@@ -7,6 +7,7 @@ class Address(BaseModel):
     address: str
 
 class UserBase(BaseModel):
+    user_id: Optional[str] = None
     first_name: str
     last_name: str
     email: str

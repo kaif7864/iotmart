@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Package, Truck, CheckCircle2, MapPin, Calendar, Clock, AlertCircle, ArrowRight, Loader2, Info } from 'lucide-react';
+import { Search, Package, Truck, CheckCircle2, CheckCircle, MapPin, Calendar, Clock, AlertCircle, ArrowRight, Loader2, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAllOrders, getLiveTracking } from '../../services/api'; // In a real app, we'd have a specific getOrderById
 

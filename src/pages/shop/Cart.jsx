@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Trash2, ShoppingCart, ArrowRight, Minus, Plus, 
@@ -12,10 +12,24 @@ import toast from 'react-hot-toast';
 
 const Cart = () => {
   const { cartItems, onRemoveFromCart, onUpdateQuantity, onAddToCart, discount, setDiscount, appliedPromo, setAppliedPromo } = useCart();
-  const { formatPrice } = useAuth();
+  const { formatPrice, user } = useAuth();
   const [savedItems, setSavedItems] = useState([]);
   const [promoCode, setPromoCode] = useState('');
   const [isApplying, setIsApplying] = useState(false);
+  const [activeCoupons, setActiveCoupons] = useState([]);
+
+  useEffect(() => {
+    const fetchCoupons = async () => {
+      try {
+        const { getActiveCoupons } = await import('../../services/api');
+        const coupons = await getActiveCoupons();
+        setActiveCoupons(coupons);
+      } catch (err) {
+        console.error("Failed to fetch active coupons:", err);
+      }
+    };
+    fetchCoupons();
+  }, []);
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shipping = subtotal > 0 ? (subtotal > 50 ? 0 : 5.99) : 0;
@@ -30,7 +44,7 @@ const Cart = () => {
     setIsApplying(true);
     try {
       const { validateCoupon } = await import('../../services/api');
-      const data = await validateCoupon(code, subtotal);
+      const data = await validateCoupon(code, subtotal, user?._id);
       
       setDiscount(data.discount_percentage);
       setAppliedPromo(data.code);
@@ -222,12 +236,12 @@ const Cart = () => {
                         placeholder="IOTMART10"
                         value={promoCode}
                         onChange={(e) => setPromoCode(e.target.value)}
-                        className="flex-grow px-5 py-4 bg-card-bg border border-border-main rounded-[16px] text-sm font-bold text-text-primary outline-none focus:border-accent transition-all uppercase tracking-widest shadow-sm"
+                        className="flex-grow min-w-0 w-full px-4 sm:px-5 py-4 bg-card-bg border border-border-main rounded-[16px] text-xs sm:text-sm font-bold text-text-primary outline-none focus:border-accent transition-all uppercase tracking-widest shadow-sm"
                       />
                       <button 
                         onClick={() => handleApplyPromo()}
                         disabled={isApplying || !promoCode.trim()}
-                        className="btn-premium px-8 py-4 text-[10px] shrink-0 rounded-[16px]"
+                        className="btn-premium px-6 sm:px-8 py-4 text-[10px] shrink-0 rounded-[16px]"
                       >
                         {isApplying ? <RefreshCcw className="h-4 w-4 animate-spin mx-auto" /> : 'Apply'}
                       </button>
@@ -242,27 +256,25 @@ const Cart = () => {
                         exit={{ opacity: 0, height: 0 }}
                         className="mt-4 space-y-3"
                       >
-                        <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Available Offers</p>
-                        <button 
-                          onClick={() => handleApplyPromo('IOTMART10')}
-                          className="w-full p-4 border border-dashed border-accent/50 bg-accent/5 rounded-[16px] flex items-center justify-between hover:bg-accent/10 transition-colors group text-left"
-                        >
-                          <div>
-                            <span className="text-[10px] font-black text-accent uppercase tracking-widest block mb-1">IOTMART10</span>
-                            <span className="text-[9px] font-medium text-text-secondary">Get 10% off your entire order</span>
-                          </div>
-                          <span className="text-[10px] font-bold text-accent uppercase tracking-widest group-hover:underline">Apply</span>
-                        </button>
-                        <button 
-                          onClick={() => handleApplyPromo('WELCOME5')}
-                          className="w-full p-4 border border-dashed border-status-success/50 bg-status-success/10 rounded-[16px] flex items-center justify-between hover:bg-status-success/20 transition-colors group text-left"
-                        >
-                          <div>
-                            <span className="text-[10px] font-black text-status-success uppercase tracking-widest block mb-1">WELCOME5</span>
-                            <span className="text-[9px] font-medium text-text-secondary">Flat 5% discount for new users</span>
-                          </div>
-                          <span className="text-[10px] font-bold text-status-success uppercase tracking-widest group-hover:underline">Apply</span>
-                        </button>
+                        {activeCoupons.length > 0 && (
+                          <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Available Offers</p>
+                        )}
+                        {activeCoupons.map((coupon) => (
+                          <button 
+                            key={coupon._id}
+                            onClick={() => handleApplyPromo(coupon.code)}
+                            className="w-full p-4 border border-dashed border-accent/50 bg-accent/5 rounded-[16px] flex items-center justify-between hover:bg-accent/10 transition-colors group text-left"
+                          >
+                            <div>
+                              <span className="text-[10px] font-black text-accent uppercase tracking-widest block mb-1">{coupon.code}</span>
+                              <span className="text-[9px] font-medium text-text-secondary">
+                                {coupon.discount_percentage ? `Get ${coupon.discount_percentage}% off` : ''} 
+                                {coupon.min_order_value ? ` (Min order: ₹${coupon.min_order_value})` : ''}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-accent uppercase tracking-widest group-hover:underline">Apply</span>
+                          </button>
+                        ))}
                       </motion.div>
                     ) : (
                       <motion.div 

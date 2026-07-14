@@ -1,6 +1,23 @@
 from services.email_service import send_order_confirmation_email
+from core.database import db
+from datetime import datetime
 
 class NotificationService:
+    async def send_in_app_notification(self, user_id: str, title: str, message: str, type: str = "alert"):
+        try:
+            notif = {
+                "user_id": user_id,
+                "title": title,
+                "message": message,
+                "type": type,
+                "read": False,
+                "created_at": datetime.utcnow()
+            }
+            await db.notifications.insert_one(notif)
+            print(f"Success: In-app notification sent to user {user_id}")
+        except Exception as e:
+            print(f"Error: Failed to insert in-app notification: {e}")
+
     def send_order_placed_email(self, email: str, order_id: str, total_amount: float):
         try:
             send_order_confirmation_email(email, str(order_id), total_amount)

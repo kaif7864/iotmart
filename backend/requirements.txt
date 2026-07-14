@@ -16,3 +16,6 @@ twilio
 python-multipart
 pyotp
 qrcode
+cloudinary
+Pillow
+email-validator

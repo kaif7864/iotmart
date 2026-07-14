@@ -138,7 +138,7 @@ const AdminProducts = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-10 border-b border-border-subtle">
         <div>
-          <p className="label-caps text-accent mb-2">Operational Registry</p>
+          <p className="label-caps text-accent mb-2">Inventory Management</p>
           <h1 className="heading-page">Inventory <span className="text-accent">Control</span></h1>
         </div>
         <div className="flex flex-wrap items-center gap-4">
@@ -152,10 +152,10 @@ const AdminProducts = () => {
               ? <Loader2 className="h-4 w-4 mr-2 animate-spin text-accent" />
               : <BrainCircuit className="h-5 w-5 mr-2 text-accent" />
             }
-            AI Strategic Restock
+            AI Auto Restock
           </Button>
           <Button onClick={() => { resetForm(); setIsModalOpen(true); }} className="h-14">
-            <Plus className="h-5 w-5 mr-2" /> Add Module
+            <Plus className="h-5 w-5 mr-2" /> Add Product
           </Button>
         </div>
       </div>
@@ -191,16 +191,60 @@ const AdminProducts = () => {
       ) : filteredProducts.length === 0 ? (
         <EmptyState
           icon={Package}
-          title="No Modules Found"
-          description="Try adjusting your filters or add a new module to the registry."
+          title="No Products Found"
+          description="Try adjusting your filters or add a new product to the registry."
         />
       ) : (
         <Table
           keyField="_id"
           data={filteredProducts}
+          mobileRenderer={(product) => {
+            const stock = product.stockQuantity !== undefined ? product.stockQuantity : 45;
+            const color = stock < 5 ? 'status-danger' : stock < 20 ? 'status-warning' : 'status-success';
+            
+            return (
+              <div className="card rounded-[24px] p-5 space-y-4 border border-border-main bg-card-bg shadow-sm">
+                <div className="flex gap-4">
+                  <div className="w-16 h-16 bg-app-bg rounded-xl p-2 border border-border-main flex-shrink-0">
+                    <img src={product.image} className="w-full h-full object-contain" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-text-primary uppercase tracking-tight line-clamp-2 leading-tight">{product.name}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="default">{product.category}</Badge>
+                      <span className="text-[10px] text-text-muted font-bold truncate">ID: {product._id.slice(-8).toUpperCase()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 bg-app-bg p-4 rounded-[16px] border border-border-subtle">
+                  <div>
+                    <p className="text-[9px] text-text-muted font-black uppercase tracking-widest mb-1">Pricing</p>
+                    <p className="text-sm font-black text-text-primary">{formatPrice(product.price)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-text-muted font-black uppercase tracking-widest mb-1">Stock Level</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-${color} font-black text-sm`}>{stock}</span>
+                      {stock < 5 && <span className="bg-status-danger text-text-inverse text-[8px] px-1.5 py-0.5 rounded-sm animate-pulse">LOW</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button onClick={() => handleEdit(product)} className="flex-1 py-3 bg-app-bg hover:bg-accent hover:text-white text-text-primary font-black text-[10px] uppercase tracking-widest rounded-[12px] transition-all border border-border-main flex items-center justify-center gap-2">
+                    <Edit2 className="h-3 w-3" /> Edit
+                  </button>
+                  <button onClick={() => handleDelete(product._id)} className="flex-1 py-3 bg-app-bg hover:bg-status-danger hover:text-white text-status-danger font-black text-[10px] uppercase tracking-widest rounded-[12px] transition-all border border-border-main flex items-center justify-center gap-2">
+                    <Trash2 className="h-3 w-3" /> Delete
+                  </button>
+                </div>
+              </div>
+            );
+          }}
           columns={[
             {
-              header: 'Module Info',
+              header: 'Product Info',
               render: (product) => (
                 <div className="flex items-center gap-6">
                   <div className="w-16 h-16 bg-app-bg rounded-sm p-2 border border-border-main flex-shrink-0">
@@ -260,13 +304,13 @@ const AdminProducts = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={currentProduct ? 'Modify Registry' : 'Register Module'}
+        title={currentProduct ? 'Edit Product' : 'Add New Product'}
         maxWidth="max-w-2xl"
       >
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-6">
-            <Input label="Module Name" type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
-            <div className="grid grid-cols-2 gap-4">
+            <Input label="Product Name" type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Unit Price (₹)" type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} required />
               <div>
                 <label className="label-caps block mb-3">Category</label>
@@ -315,8 +359,8 @@ const AdminProducts = () => {
             </div>
             <div className="card p-6 rounded-sm flex items-center justify-between">
               <div>
-                <p className="label-caps text-text-primary mb-1">Inventory Pulse</p>
-                <p className="label-caps">Active in Marketplace</p>
+                <p className="label-caps text-text-primary mb-1">In Stock Status</p>
+                <p className="label-caps">Available for purchase</p>
               </div>
               <button
                 type="button"
@@ -328,7 +372,7 @@ const AdminProducts = () => {
             </div>
             <div className="pt-4">
               <Button type="submit" className="w-full py-5 text-sm shadow-xl shadow-accent/20">
-                {currentProduct ? 'Execute Update' : 'Initialize Module'}
+                {currentProduct ? 'Update Product' : 'Add Product'}
               </Button>
             </div>
           </div>
@@ -340,9 +384,9 @@ const AdminProducts = () => {
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={confirmDelete}
-        title="Delete Component?"
-        message="This will permanently remove this module from the inventory registry. This cannot be undone."
-        confirmLabel="Delete Module"
+        title="Delete Product?"
+        message="This will permanently remove this product from the inventory registry. This cannot be undone."
+        confirmLabel="Delete Product"
         variant="danger"
       />
     </div>
