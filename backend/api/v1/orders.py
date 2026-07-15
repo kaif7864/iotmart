@@ -59,16 +59,21 @@ async def create_order(order: OrderCreate = Body(...), background_tasks: Backgro
                 product = await db.products.find_one({"_id": ObjectId(product_id)})
                 if not product:
                     raise HTTPException(status_code=400, detail=f"Product {product_id} not found")
-                if product.get("stockQuantity", 0) < quantity:
+                
+                stock = int(product.get("stockQuantity", 0))
+                req_qty = int(quantity)
+                
+                if stock < req_qty:
                     raise HTTPException(status_code=400, detail=f"Insufficient stock for {product.get('name', 'Product')}")
                 
                 # Prevent cart spoofing: overwrite with DB true price
                 item["price"] = product.get("price", 0)
-                products_to_update.append({"id": ObjectId(product_id), "qty": quantity, "name": product.get("name")})
+                products_to_update.append({"id": ObjectId(product_id), "qty": req_qty, "name": product.get("name")})
             except HTTPException:
                 raise
             except Exception as e:
-                pass
+                print(f"Error checking stock for product {product_id}: {e}")
+                raise HTTPException(status_code=400, detail=f"Error checking stock for {product_id}")
                 
     # Basic Total validation (prevent 1 rupee hack)
     true_subtotal = sum(i["price"] * i.get("quantity", 1) for i in order_dict.get("items", []))
@@ -149,9 +154,21 @@ async def create_order(order: OrderCreate = Body(...), background_tasks: Backgro
             
         # Notify admins
         async def notify_admins():
+            # Check for low stock items from this order
+            low_stock_alerts = []
+            for p in products_to_update:
+                updated_product = await db.products.find_one({"_id": p["id"]})
+                if updated_product and updated_product.get("stockQuantity", 0) <= 5: # Threshold
+                    low_stock_alerts.append(f"{updated_product.get('name')} (Only {updated_product.get('stockQuantity')} left!)")
+            
             admins = await db.users.find({"role": "admin"}).to_list(100)
             for admin in admins:
+                # Order notification
                 await notify.send_in_app_notification(str(admin["_id"]), "New Order Received", f"Order #{str(new_order['_id'])[:8]} was placed by {user_email}.", "alert")
+                # Stock notifications
+                for alert in low_stock_alerts:
+                    await notify.send_in_app_notification(str(admin["_id"]), "Low Stock Alert", alert, "warning")
+                    
         background_tasks.add_task(notify_admins)
     else:
         notify.send_order_placed_email(user_email, new_order["_id"], new_order.get("total", 0))

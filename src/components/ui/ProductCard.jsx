@@ -29,7 +29,7 @@ const ProductCard = ({ product }) => {
           className="w-full h-full object-contain p-4 transform transition-all duration-500 group-hover:scale-105"
         />
         <div className="absolute top-2 left-2 z-20">
-          {!product.inStock && (
+          {(!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity <= 0)) && (
             <span className="bg-status-danger text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-widest">
               Sold Out
             </span>
@@ -98,21 +98,35 @@ const ProductCard = ({ product }) => {
               <button 
                 onClick={(e) => {
                   e.preventDefault();
-                  onUpdateQuantity(product._id, quantityInCart + 1);
+                  const stock = product.stockQuantity !== undefined ? Number(product.stockQuantity) : Infinity;
+                  if (quantityInCart < stock) {
+                    onUpdateQuantity(product._id, quantityInCart + 1);
+                  } else {
+                    alert(`Sorry, only ${stock} items available in stock.`);
+                  }
                 }}
                 className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent hover:bg-card-bg rounded transition-colors text-sm font-black"
               >
                 +
               </button>
             </div>
+          ) : (!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity <= 0)) ? (
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                alert("We'll notify you when this product is back in stock!");
+              }}
+              className="px-4 py-2 bg-surface-hover hover:bg-border-main text-text-primary border border-border-main rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm"
+            >
+              Notify Me
+            </button>
           ) : (
             <button 
               onClick={(e) => {
                 e.preventDefault();
-                if (product.inStock) onAddToCart(product);
+                onAddToCart(product);
               }}
-              disabled={!product.inStock}
-              className="px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-md text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+              className="px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-md text-xs font-bold transition-all flex items-center gap-2 shadow-sm"
             >
               <ShoppingCart className="h-4 w-4" /> Add
             </button>

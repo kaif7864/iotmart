@@ -265,14 +265,32 @@ const ProductDetail = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <button 
-                  className="flex-grow btn-premium py-5 text-sm font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3"
-                  onClick={() => product.inStock && onAddToCart(product)}
-                  disabled={!product.inStock}
-                >
-                  <ShoppingCart className="h-5 w-5" />
-                  {product.inStock ? 'Deploy to Cart' : 'Stock Exhausted'}
-                </button>
+                {(!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity <= 0)) ? (
+                  <>
+                    {/* Out of Stock State */}
+                    <div className="flex-grow flex items-center gap-4 px-6 py-5 bg-status-danger-bg border-2 border-status-danger/30 rounded-sm">
+                      <PackageX className="h-5 w-5 text-status-danger flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-black text-status-danger uppercase tracking-widest">Stock Exhausted</p>
+                        <p className="text-[10px] text-text-muted font-bold">This product is currently unavailable</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => alert("You'll be notified as soon as this product is back in stock!")}
+                      className="px-8 py-5 border-2 border-border-subtle text-text-secondary hover:border-accent hover:text-accent rounded-sm transition-all flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest"
+                    >
+                      🔔 Notify Me
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    className="flex-grow btn-premium py-5 text-sm font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3"
+                    onClick={() => onAddToCart(product)}
+                  >
+                    <ShoppingCart className="h-5 w-5" />
+                    Deploy to Cart
+                  </button>
+                )}
                 <button
                   onClick={() => addToCompare(product)}
                   className={`px-8 py-5 border-2 rounded-sm transition-all flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest ${

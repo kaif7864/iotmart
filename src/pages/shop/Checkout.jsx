@@ -7,7 +7,8 @@ import { useCart } from '../../hooks/useCart';
 import { 
   ChevronLeft, MapPin, CreditCard, Truck, 
   ShieldCheck, CheckCircle2, Loader2, Package, 
-  Wallet, Building2, Smartphone, Gift, Clock, AlertCircle, Zap
+  Wallet, Building2, Smartphone, Gift, Clock, AlertCircle, Zap,
+  X, Send, MessageSquare
 } from 'lucide-react';
 import { load } from '@cashfreepayments/cashfree-js';
 import apiClient from '../../services/api.client';
@@ -37,6 +38,13 @@ const Checkout = () => {
   const [loading, setLoading] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [address, setAddress] = useState('');
+  
+  // Blocked account modal state
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [queryText, setQueryText] = useState("");
+  const [querySending, setQuerySending] = useState(false);
+  const [querySent, setQuerySent] = useState(false);
+  
   const [isAddingNewAddress, setIsAddingNewAddress] = useState(!addresses || addresses.length === 0);
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [newAddr, setNewAddr] = useState({ 
@@ -88,6 +96,24 @@ const Checkout = () => {
     setNewAddr({ type: 'Home', name: '', phone: '', pincode: '', state: '', city: '', house: '', area: '', landmark: '' });
   };
 
+  const handleSendQuery = async () => {
+    if (!queryText.trim()) return;
+    setQuerySending(true);
+    try {
+      await apiClient.post('/support/', {
+        name: user?.name || user?.first_name || 'Suspended User',
+        email: user?.email || '',
+        message: `Blocked Account Query: ${queryText}`
+      });
+      setQuerySent(true);
+    } catch (error) {
+      console.error("Failed to send query", error);
+      alert("Failed to send message. Please try again or email support@iotmart.com");
+    } finally {
+      setQuerySending(false);
+    }
+  };
+
   const handleCashfreePayment = async () => {
     if (!address.trim()) {
       alert('Please enter or select a delivery address');
@@ -136,7 +162,12 @@ const Checkout = () => {
       });
     } catch (e) {
       console.error(e);
-      alert(`Failed to initialize Cashfree: ${e.response?.data?.detail || e.message}. Did you add CASHFREE_APP_ID to your .env?`);
+      const errorMsg = e.response?.data?.detail || e.message;
+      if (errorMsg === "Account is inactive or blocked") {
+        setShowBlockedModal(true);
+      } else {
+        alert(`Payment Initialization Failed: ${errorMsg}\n\nPlease try again later or select Cash on Delivery.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -171,7 +202,12 @@ const Checkout = () => {
       onClearCart();
     } catch (error) {
       console.error('Order failed:', error);
-      alert('Order placement failed. Please try again.');
+      const errorMsg = error.response?.data?.detail || error.message;
+      if (errorMsg === "Account is inactive or blocked") {
+        setShowBlockedModal(true);
+      } else {
+        alert(`Order Failed: ${errorMsg}\n\nPlease check your cart and try again.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -456,6 +492,97 @@ const Checkout = () => {
         handleAddAddress={handleAddAddress} 
         INDIAN_STATES={INDIAN_STATES}
       />
+
+      <AnimatePresence>
+        {showBlockedModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              onClick={() => !querySending && setShowBlockedModal(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="card bg-card-bg/95 backdrop-blur-2xl w-full max-w-md p-6 sm:p-8 rounded-[32px] shadow-[0_0_80px_rgba(239,68,68,0.15)] relative z-10 border border-status-danger/20 overflow-y-auto max-h-[95vh] hide-scrollbar"
+            >
+              {/* Background Glows */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-gradient-to-b from-status-danger/10 to-transparent pointer-events-none" />
+              
+              <button 
+                onClick={() => setShowBlockedModal(false)}
+                className="absolute right-4 top-4 sm:right-6 sm:top-6 p-2 rounded-full bg-app-bg/50 hover:bg-status-danger/10 text-text-muted hover:text-status-danger transition-all duration-300 z-20"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto mt-2 bg-gradient-to-br from-status-danger-bg to-status-danger/20 rounded-[24px] flex items-center justify-center mb-6 border border-status-danger/30 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+                <div className="absolute inset-0 rounded-[24px] border border-status-danger/50 animate-ping opacity-20" />
+                <AlertCircle className="h-8 w-8 sm:h-10 sm:w-10 text-status-danger" />
+              </div>
+              
+              <div className="text-center mb-6 sm:mb-8">
+                <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-text-primary mb-3">
+                  Account <span className="text-status-danger">Suspended</span>
+                </h2>
+                <p className="text-text-secondary text-xs sm:text-sm leading-relaxed max-w-[95%] sm:max-w-[90%] mx-auto">
+                  Your account access has been restricted due to a policy violation or security flag. Purchasing features are currently disabled.
+                </p>
+              </div>
+              
+              {querySent ? (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  className="p-6 bg-status-success/10 rounded-2xl border border-status-success/30 text-center relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-b from-status-success/5 to-transparent pointer-events-none" />
+                  <CheckCircle2 className="h-12 w-12 text-status-success mx-auto mb-4 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]" />
+                  <p className="text-status-success font-black uppercase tracking-widest text-sm mb-2">Request Received</p>
+                  <p className="text-text-muted text-xs leading-relaxed mb-6">Our security team will review your account status within 24-48 hours. Please monitor your email.</p>
+                  <button 
+                    onClick={() => setShowBlockedModal(false)}
+                    className="w-full py-3 bg-status-success/20 hover:bg-status-success text-status-success hover:text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300"
+                  >
+                    Acknowledge
+                  </button>
+                </motion.div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="relative group">
+                    <div className="absolute left-4 top-4 text-status-danger/50 group-focus-within:text-status-danger transition-colors">
+                      <MessageSquare className="h-5 w-5" />
+                    </div>
+                    <textarea 
+                      value={queryText}
+                      onChange={(e) => setQueryText(e.target.value)}
+                      placeholder="Explain your situation to the administrator..."
+                      className="w-full h-32 bg-app-bg/50 border border-border-main rounded-2xl py-4 pl-12 pr-4 text-sm text-text-primary placeholder:text-text-muted focus:border-status-danger/50 focus:ring-1 focus:ring-status-danger/50 focus:outline-none transition-all resize-none shadow-inner"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setShowBlockedModal(false)}
+                      className="flex-1 py-4 bg-app-bg hover:bg-border-main text-text-primary rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleSendQuery}
+                      disabled={!queryText.trim() || querySending}
+                      className="flex-1 py-4 bg-status-danger hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_20px_-10px_rgba(239,68,68,0.5)]"
+                    >
+                      {querySending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {querySending ? 'Sending...' : 'Appeal Ban'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

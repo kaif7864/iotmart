@@ -30,15 +30,35 @@ export const AuthProvider = ({ children }) => {
   const [currency, setCurrency] = useState({ code: 'INR', symbol: '₹', rate: 1 });
   const [notifications, setNotifications] = useState([]);
 
-  // Fetch notifications on load if user is logged in
+  // Fetch notifications and setup live polling if user is logged in
   useEffect(() => {
+    let intervalId;
+    
+    const fetchNotifs = () => {
+      if (user) {
+        getNotifications()
+          .then(data => setNotifications(data))
+          .catch(err => {
+            console.error("Failed to load notifications:", err);
+            // If the user is blocked or unauthorized, stop spamming the backend
+            if (err.response?.status === 403 || err.response?.status === 401) {
+              if (intervalId) clearInterval(intervalId);
+            }
+          });
+      }
+    };
+
     if (user) {
-      getNotifications()
-        .then(data => setNotifications(data))
-        .catch(err => console.error("Failed to load notifications:", err));
+      fetchNotifs(); // Fetch immediately on load
+      // Poll every 15 seconds to make notifications "live"
+      intervalId = setInterval(fetchNotifs, 15000);
     } else {
       setNotifications([]);
     }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [user]);
 
   const addNotification = (notif) => {
@@ -158,9 +178,19 @@ export const AuthProvider = ({ children }) => {
     if (!user) return;
     try {
       const response = await apiAddAddress(user._id, newAddress);
-      setAddresses(prev => [...prev, response]);
+      setAddresses(prev => {
+        const newAddresses = [...prev, response];
+        updateUserSession({ ...user, addresses: newAddresses });
+        return newAddresses;
+      });
     } catch (error) {
       console.error('Address addition failed:', error);
+      const errorMsg = error.response?.data?.detail;
+      if (errorMsg === "Account is inactive or blocked") {
+        alert("Action Denied: Your account has been suspended by the administrator.");
+      } else {
+        alert("Failed to add address. Please try again.");
+      }
     }
   };
 
@@ -168,9 +198,19 @@ export const AuthProvider = ({ children }) => {
     if (!user) return;
     try {
       await apiRemoveAddress(user._id, id);
-      setAddresses(prev => prev.filter(a => a.id !== id));
+      setAddresses(prev => {
+        const newAddresses = prev.filter(a => a.id !== id);
+        updateUserSession({ ...user, addresses: newAddresses });
+        return newAddresses;
+      });
     } catch (error) {
       console.error('Address removal failed:', error);
+      const errorMsg = error.response?.data?.detail;
+      if (errorMsg === "Account is inactive or blocked") {
+        alert("Action Denied: Your account has been suspended by the administrator.");
+      } else {
+        alert("Failed to remove address. Please try again.");
+      }
     }
   };
 

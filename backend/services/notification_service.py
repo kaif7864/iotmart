@@ -25,6 +25,14 @@ class NotificationService:
         except Exception as e:
             print(f"Error: Failed to send order email to {email}: {e}")
 
+    def send_email(self, email: str, subject: str, message: str):
+        try:
+            from services.email_service import _send_email
+            _send_email(email, subject, message, f"<p>{message}</p>")
+            print(f"Success: Sent generic email to {email}")
+        except Exception as e:
+            print(f"Error: Failed to send generic email to {email}: {e}")
+
     def send_whatsapp_alert(self, phone: str, order_id: str, status: str, tracking_id: str = None):
         try:
             from twilio.rest import Client

@@ -23,13 +23,28 @@ async def create_support_ticket(ticket: dict = Body(...), background_tasks: Back
     
     result = await db.support_tickets.insert_one(ticket_doc)
     
-    # Notify admin via email (optional, async)
+    # Notify admin via email and in-app
     try:
         from services.notification_service import notify
         from core.config import settings
-        admin_email = "admin@iotmart.com" # Replace with actual admin email if needed
+        admin_email = settings.GMAIL_USER or "admin@iotmart.com"
+        
+        async def notify_admins():
+            # Send Email
+            notify.send_email(admin_email, f"New Support Ticket from {name}", message)
+            
+            # Send In-App Notification to all admins
+            admins = await db.users.find({"role": "admin"}).to_list(100)
+            for admin in admins:
+                await notify.send_in_app_notification(
+                    str(admin["_id"]),
+                    "New Support Ticket",
+                    f"{name} submitted a new query: {message[:50]}...",
+                    "info"
+                )
+                
         if background_tasks:
-            background_tasks.add_task(notify.send_email, admin_email, f"New Support Ticket from {name}", message)
+            background_tasks.add_task(notify_admins)
     except Exception as e:
         print(f"Support notification failed: {e}")
         

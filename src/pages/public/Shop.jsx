@@ -291,12 +291,24 @@ const Shop = () => {
                                 </div>
                               </div>
                             </div>
-                            <button 
-                              onClick={() => onAddToCart(product)}
-                              className="btn-premium px-8 py-3 text-xs whitespace-nowrap"
-                            >
-                              Add To Cart
-                            </button>
+                            {(!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity <= 0)) ? (
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  alert("We'll notify you when this product is back in stock!");
+                                }}
+                                className="px-8 py-3 bg-surface-hover hover:bg-border-main text-text-primary border border-border-main rounded-md text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
+                              >
+                                Notify Me
+                              </button>
+                            ) : (
+                              <button 
+                                onClick={() => onAddToCart(product)}
+                                className="btn-premium px-8 py-3 text-xs whitespace-nowrap"
+                              >
+                                Add To Cart
+                              </button>
+                            )}
                           </div>
                         )}
                       </motion.div>

@@ -91,17 +91,22 @@ const AddAddressModal = ({ showAddAddress, setShowAddAddress, newAddr, setNewAdd
                 <input type="text" value={newAddr.landmark} onChange={(e) => setNewAddr({...newAddr, landmark: e.target.value})} className="w-full px-5 py-3 bg-app-bg border border-border-main rounded-sm text-sm font-medium outline-none focus:border-accent" />
               </div>
               <div>
-              <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] block mb-2">Address Type</label>
-              <select 
-                value={newAddr.type}
-                onChange={(e) => setNewAddr({...newAddr, type: e.target.value})}
-                className="w-full px-5 py-3 bg-app-bg border border-border-main rounded-sm text-sm font-bold outline-none"
-              >
-                <option>Home</option>
-                <option>Lab / Office</option>
-                <option>Warehouse</option>
-              </select>
-            </div>
+                <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] block mb-2">Address Type Name</label>
+                <input 
+                  type="text"
+                  list="address-types"
+                  required
+                  placeholder="e.g. Home, Office, Hostel"
+                  value={newAddr.type}
+                  onChange={(e) => setNewAddr({...newAddr, type: e.target.value})}
+                  className="w-full px-5 py-3 bg-app-bg border border-border-main rounded-sm text-sm font-bold outline-none focus:border-accent"
+                />
+                <datalist id="address-types">
+                  <option value="Home" />
+                  <option value="Office" />
+                  <option value="Warehouse" />
+                </datalist>
+              </div>
           </div>
 
           <div className="pt-4">
