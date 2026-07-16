@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link } from 'react-router-dom';
 import AdminSidebar from '../components/admin/AdminSidebar';
-import { Bell, Search, User, Menu, X, AlertTriangle, Info, ShieldCheck } from 'lucide-react';
+import { Bell, Search, User, Menu, X, AlertTriangle, Info, ShieldCheck, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -26,7 +26,15 @@ const AdminLayout = () => {
             </button>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-6">
+            <Link 
+              to="/" 
+              title="Go to Main Store"
+              className="p-2 sm:p-3 bg-app-bg rounded-full border border-border-main hover:bg-card-bg hover:border-accent transition-all shadow-sm group flex items-center justify-center"
+            >
+              <Globe className="h-5 w-5 text-text-secondary group-hover:text-accent transition-colors" />
+            </Link>
+
             <div className="relative">
               <button 
                 onClick={() => { setIsNotifOpen(!isNotifOpen); markAllRead(); }}
