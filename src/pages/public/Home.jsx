@@ -46,7 +46,8 @@ const Home = () => {
     const fetchFeatured = async () => {
       try {
         const data = await getProducts();
-        setFeaturedProducts(data.slice(0, 4));
+        const shuffled = [...data].sort(() => 0.5 - Math.random());
+        setFeaturedProducts(shuffled.slice(0, 4));
       } catch (error) {
         console.error("Error loading featured products:", error);
       } finally {

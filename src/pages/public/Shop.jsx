@@ -6,6 +6,7 @@ import { getProducts } from '../../services/api';
 import { SkeletonGrid } from '../../components/common';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../hooks/useCart';
+import { Link } from 'react-router-dom';
 import SEO from '../../components/common/SEO';
 
 const Shop = () => {
@@ -27,7 +28,8 @@ const Shop = () => {
     const fetchProducts = async () => {
       try {
         const data = await getProducts();
-        setProducts(data);
+        const shuffled = [...data].sort(() => 0.5 - Math.random());
+        setProducts(shuffled);
       } catch (error) {
         console.error("Error loading products:", error);
       } finally {
@@ -275,9 +277,9 @@ const Shop = () => {
                         {viewMode === 'grid' ? (
                           <ProductCard product={product} onAddToCart={onAddToCart} />
                         ) : (
-                          <div className="bg-card-bg p-6 rounded-sm border border-border-main flex flex-col md:flex-row items-center gap-8 group hover:shadow-lg transition-all">
+                          <Link to={`/product/${product._id}`} className="bg-card-bg p-6 rounded-sm border border-border-main flex flex-col md:flex-row items-center gap-8 group hover:shadow-lg transition-all block">
                             <div className="w-32 h-32 bg-surface-hover rounded-sm p-4 flex-shrink-0">
-                              <img src={product.image} className="w-full h-full object-contain" />
+                              <img src={product.image} className="w-full h-full object-contain" alt={product.name} />
                             </div>
                             <div className="flex-grow text-center md:text-left">
                               <span className="text-[9px] font-black text-accent uppercase tracking-widest">{product.category}</span>
@@ -303,13 +305,13 @@ const Shop = () => {
                               </button>
                             ) : (
                               <button 
-                                onClick={() => onAddToCart(product)}
+                                onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
                                 className="btn-premium px-8 py-3 text-xs whitespace-nowrap"
                               >
                                 Add To Cart
                               </button>
                             )}
-                          </div>
+                          </Link>
                         )}
                       </motion.div>
                     ))}

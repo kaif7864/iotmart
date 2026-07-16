@@ -7,6 +7,8 @@ import {
 import { getAllOrders, updateOrderStatus, updateOrderTracking, refundOrder } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { generateInvoice } from '../../utils/generateInvoice';
+import toast from 'react-hot-toast';
 
 const T = {
   caps: "text-[10px] font-black uppercase tracking-widest text-text-muted",
@@ -145,7 +147,7 @@ const OrderRow = ({ order, onClick, formatPrice }) => {
 };
 
 // ── Order Drawer ──────────────────────────────────────────────────────────
-const OrderDrawer = ({ order, onClose, onUpdateStatus, onRefund, formatPrice }) => {
+const OrderDrawer = ({ order, onClose, onUpdateStatus, onRefund, formatPrice, currency }) => {
   const [trackingId, setTrackingId] = useState('');
   const [isSettingTracking, setIsSettingTracking] = useState(false);
   const { name, phone, full: fullAddress } = parseCustomerDetails(order.address);
@@ -180,7 +182,14 @@ const OrderDrawer = ({ order, onClose, onUpdateStatus, onRefund, formatPrice }) 
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               <button
-                onClick={() => alert('Receipt PDF generation is coming soon!')}
+                onClick={() => {
+                  try {
+                    generateInvoice(order, { name, email: phone }, currency);
+                    toast.success('Invoice generated successfully');
+                  } catch (e) {
+                    toast.error('Failed to generate invoice');
+                  }
+                }}
                 className="group flex items-center gap-2 bg-accent/10 hover:bg-accent text-accent hover:text-white px-3 sm:px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200"
               >
                 <Download className="w-3.5 h-3.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -330,7 +339,7 @@ const OrderDrawer = ({ order, onClose, onUpdateStatus, onRefund, formatPrice }) 
 
 // ── Main Page ─────────────────────────────────────────────────────────────
 const AdminOrders = () => {
-  const { formatPrice } = useAuth();
+  const { formatPrice, currency } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -485,6 +494,7 @@ const AdminOrders = () => {
           onUpdateStatus={handleUpdateStatus}
           onRefund={handleRefund}
           formatPrice={formatPrice}
+          currency={currency}
         />
       )}
     </div>

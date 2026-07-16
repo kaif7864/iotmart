@@ -45,7 +45,8 @@ const StatCard = ({ label, value, icon: Icon, color, trend, trendUp, sub }) => (
 const PromoModal = ({ isOpen, onClose, currentPromo, onSubmit }) => {
   const [formData, setFormData] = useState({
     code: '', discount_percentage: 10, min_order_value: 500,
-    max_discount_amount: 1000, valid_until: '', is_active: true
+    max_discount_amount: 1000, valid_until: '', is_active: true,
+    description: '', usage_limit: '', per_user_limit: 1
   });
 
   useEffect(() => {
@@ -57,9 +58,12 @@ const PromoModal = ({ isOpen, onClose, currentPromo, onSubmit }) => {
         max_discount_amount: currentPromo.max_discount_amount || '',
         valid_until: currentPromo.valid_until ? currentPromo.valid_until.split('T')[0] : '',
         is_active: currentPromo.is_active,
+        description: currentPromo.description || '',
+        usage_limit: currentPromo.usage_limit || '',
+        per_user_limit: currentPromo.per_user_limit || 1
       });
     } else {
-      setFormData({ code: '', discount_percentage: 10, min_order_value: 500, max_discount_amount: 1000, valid_until: '', is_active: true });
+      setFormData({ code: '', discount_percentage: 10, min_order_value: 500, max_discount_amount: 1000, valid_until: '', is_active: true, description: '', usage_limit: '', per_user_limit: 1 });
     }
   }, [currentPromo, isOpen]);
 
@@ -119,6 +123,24 @@ const PromoModal = ({ isOpen, onClose, currentPromo, onSubmit }) => {
                 <input type="date" value={formData.valid_until} onChange={e => set('valid_until', e.target.value)}
                   className="w-full bg-app-bg border border-border-main rounded-xl px-4 py-3 text-sm font-bold text-text-primary outline-none focus:border-accent transition-all" />
               </div>
+              <div>
+                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 block">Total Usage Limit</label>
+                <input type="number" value={formData.usage_limit} onChange={e => set('usage_limit', e.target.value ? Number(e.target.value) : '')} placeholder="e.g. 100"
+                  className="w-full bg-app-bg border border-border-main rounded-xl px-4 py-3 text-sm font-bold text-text-primary outline-none focus:border-accent transition-all" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 block">Uses Per User</label>
+                <input type="number" value={formData.per_user_limit} onChange={e => set('per_user_limit', Number(e.target.value))} min="1" required
+                  className="w-full bg-app-bg border border-border-main rounded-xl px-4 py-3 text-sm font-bold text-text-primary outline-none focus:border-accent transition-all" />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 block">Custom Description</label>
+              <textarea rows={2} value={formData.description} onChange={e => set('description', e.target.value)}
+                placeholder="Optional. Will override the auto-generated description."
+                className="w-full bg-app-bg border border-border-main rounded-xl px-4 py-3 text-sm font-bold text-text-primary outline-none focus:border-accent transition-all resize-none placeholder:text-text-muted placeholder:font-normal" />
             </div>
 
             {/* Toggle */}
@@ -259,14 +281,20 @@ const PromoCard = ({ promo, onEdit, onDelete }) => {
 
       {/* Description text */}
       <div className="mb-5 bg-app-bg/50 p-3 rounded-xl border border-border-subtle">
-        <p className="text-xs font-bold text-text-primary leading-relaxed">
-          Gives <span className="text-accent font-black">{promo.discount_percentage}% off</span> on the total order value.
-          <br className="md:hidden" />
-          <span className="md:ml-1 text-text-muted">
-            Valid on orders above <span className="font-black text-text-primary">₹{promo.min_order_value}</span>
-            {promo.max_discount_amount ? <span>, up to a maximum discount of <span className="font-black text-text-primary">₹{promo.max_discount_amount}</span></span> : ''}.
-          </span>
-        </p>
+        {promo.description ? (
+          <p className="text-xs font-bold text-text-primary leading-relaxed">
+            {promo.description}
+          </p>
+        ) : (
+          <p className="text-xs font-bold text-text-primary leading-relaxed">
+            Gives <span className="text-accent font-black">{promo.discount_percentage}% off</span> on the total order value.
+            <br className="md:hidden" />
+            <span className="md:ml-1 text-text-muted">
+              Valid on orders above <span className="font-black text-text-primary">₹{promo.min_order_value}</span>
+              {promo.max_discount_amount ? <span>, up to a maximum discount of <span className="font-black text-text-primary">₹{promo.max_discount_amount}</span></span> : ''}.
+            </span>
+          </p>
+        )}
       </div>
 
       {/* Stats grid */}

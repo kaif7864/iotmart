@@ -8,7 +8,7 @@ class ProductRepository:
     async def get_all_products(self, skip: int = 0, limit: int = 100, query: dict = None):
         if query is None:
             query = {}
-        return await self.collection.find(query).skip(skip).limit(limit).to_list(length=limit)
+        return await self.collection.find(query).sort("_id", -1).skip(skip).limit(limit).to_list(length=limit)
 
     async def count_products(self, query: dict = None):
         if query is None:

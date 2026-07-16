@@ -55,15 +55,18 @@ export const getProductById = async (id) => {
 
 export const createProduct = async (productData) => {
   const response = await apiClient.post('/products', productData);
+  apiCache.products.timestamp = 0; // Force cache invalidation
   return response.data;
 };
 
 export const updateProduct = async (id, productData) => {
   const response = await apiClient.put(`/products/${id}`, productData);
+  apiCache.products.timestamp = 0; // Force cache invalidation
   return response.data;
 };
 
 export const deleteProduct = async (id) => {
   const response = await apiClient.delete(`/products/${id}`);
+  apiCache.products.timestamp = 0; // Force cache invalidation
   return response.data;
 };

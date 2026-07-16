@@ -12,11 +12,14 @@ const OrderTimeline = ({ status }) => {
 
   const currentStep = steps.findIndex(step => step.label === status);
   const isCancelled = status === 'Cancelled';
+  const isReturn = status === 'Return Requested' || status === 'Refunded';
 
-  if (isCancelled) {
+  if (isCancelled || isReturn) {
     return (
-      <div className="bg-red-50 border border-red-100 rounded-sm p-4 text-center">
-        <p className="text-red-600 font-bold text-xs uppercase tracking-widest">Order Cancelled</p>
+      <div className={`border rounded-sm p-4 text-center ${isCancelled ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
+        <p className={`font-bold text-xs uppercase tracking-widest ${isCancelled ? 'text-red-600' : 'text-amber-600'}`}>
+          {status}
+        </p>
       </div>
     );
   }

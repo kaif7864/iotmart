@@ -9,6 +9,7 @@ import { getProducts, createProduct, updateProduct, deleteProduct, getAIChatRepl
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmModal } from '../../components/common';
+import toast from 'react-hot-toast';
 
 const CATEGORIES = ['All', 'Microcontrollers', 'Sensors', 'Actuators', 'Connectivity', 'Power', 'Accessories', 'Displays', 'Robotics'];
 
@@ -399,7 +400,7 @@ const AdminProducts = () => {
   useEffect(() => { fetchProducts(); }, []);
 
   const fetchProducts = async () => {
-    try { const data = await getProducts(); setProducts(data); }
+    try { const data = await getProducts(1, 10000); setProducts(data); }
     catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -411,8 +412,11 @@ const AdminProducts = () => {
     try {
       const { uploadProductImage } = await import('../../services/api');
       const res = await uploadProductImage(fd);
-      if (res.data?.image_url) setFormData(f => ({ ...f, image: (res.data.image_url.startsWith('http') ? '' : 'http://localhost:8000') + res.data.image_url }));
-    } catch (err) { alert(err.response?.data?.detail || 'Upload failed'); }
+      if (res.data?.image_url) {
+        setFormData(f => ({ ...f, image: (res.data.image_url.startsWith('http') ? '' : 'http://localhost:8000') + res.data.image_url }));
+        toast.success('Image uploaded successfully');
+      }
+    } catch (err) { toast.error(err.response?.data?.detail || 'Upload failed'); }
     finally { setIsUploading(false); }
   };
 
@@ -420,17 +424,29 @@ const AdminProducts = () => {
     e.preventDefault();
     try {
       const payload = { ...formData, stockQuantity: Number(formData.stockQuantity), price: Number(formData.price) };
-      if (currentProduct) await updateProduct(currentProduct._id, payload);
-      else await createProduct(payload);
+      if (currentProduct) {
+        await updateProduct(currentProduct._id, payload);
+        toast.success('Product updated successfully');
+      } else {
+        await createProduct(payload);
+        toast.success('Product added successfully');
+      }
       fetchProducts(); setDrawerOpen(false); resetForm();
-    } catch { alert('Error saving product'); }
+    } catch (error) { 
+      const detail = error.response?.data?.detail;
+      toast.error(Array.isArray(detail) ? detail.map(d => d.msg).join(', ') : (detail || 'Error saving product')); 
+    }
   };
 
   const handleEdit = (p) => { setCurrentProduct(p); setFormData({ ...p }); setDrawerOpen(true); };
   const handleDelete = (id) => { setDeleteTarget(id); setDeleteOpen(true); };
   const confirmDelete = async () => {
-    try { await deleteProduct(deleteTarget); fetchProducts(); setDeleteOpen(false); setDeleteTarget(null); }
-    catch { alert('Delete failed'); }
+    try { 
+      await deleteProduct(deleteTarget); 
+      toast.success('Product deleted successfully');
+      fetchProducts(); setDeleteOpen(false); setDeleteTarget(null); 
+    }
+    catch (error) { toast.error(error.response?.data?.detail || 'Delete failed'); }
   };
   const resetForm = () => { setFormData({ name: '', price: '', category: '', description: '', image: '', inStock: true, stockQuantity: 100, specs: [] }); setCurrentProduct(null); };
 
@@ -504,7 +520,7 @@ const AdminProducts = () => {
 
       {/* ── KPI Cards ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <KpiCard label="Total SKUs" value={products.length} icon={Layers} color="#6366f1"
+        <KpiCard label="Total Stock" value={products.length} icon={Layers} color="#6366f1"
           trend={12} trendUp active={stockFilter === 'All'} onClick={() => { setStockFilter('All'); setActiveCategory('All'); }} />
         <KpiCard label="Healthy Stock" value={inOk} icon={ShieldCheck} color="#10b981"
           trendUp active={stockFilter === 'Healthy'} onClick={() => setStockFilter('Healthy')} />

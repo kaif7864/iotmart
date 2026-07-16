@@ -23,6 +23,17 @@ const Navbar = () => {
   const [isListening, setIsListening] = useState(false);
   const [allProducts, setAllProducts] = useState([]);
   const searchRef = useRef(null);
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setIsNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -182,7 +193,7 @@ const Navbar = () => {
             )}
 
             {/* Notifications */}
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => { setIsNotifOpen(!isNotifOpen); markAllRead(); }}
                 className="p-3 bg-app-bg rounded-full border border-border-main hover:bg-card-bg hover:border-accent transition-all shadow-sm relative group"

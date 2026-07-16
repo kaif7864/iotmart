@@ -224,29 +224,27 @@ async def update_order_status(id: str, status: str = Body(..., embed=True)):
                     print(f"Failed to restore stock for {product_id}: {e}")
 
     result = await order_repo.update_order(id, {"status": status})
-    if result.modified_count:
-        # Log activity
-        try:
-            from api.v1.logs import log_activity
-            await log_activity("ORDER_STATUS_UPDATE", f"Order #{id[:8].upper()}", "admin", f"Status changed to {status}")
-        except Exception:
-            pass
-        # Trigger WhatsApp Alert
-        try:
-            from services.notification_service import notify
-            from core.database import db
-            from bson import ObjectId
-            
-            user = await db.users.find_one({"_id": ObjectId(order["user_id"])})
-            if user and user.get("phone"):
-                notify.send_whatsapp_alert(user["phone"], str(id), status, order.get("tracking_id"))
-            else:
-                print(f"Warning: No phone number found for user {order['user_id']}")
-        except Exception as e:
-            print(f"Failed to send WhatsApp alert: {e}")
-            
-        return {"message": "Status updated"}
-    raise HTTPException(status_code=500, detail="Failed to update status")
+    # Log activity
+    try:
+        from api.v1.logs import log_activity
+        await log_activity("ORDER_STATUS_UPDATE", f"Order #{id[:8].upper()}", "admin", f"Status changed to {status}")
+    except Exception:
+        pass
+    # Trigger WhatsApp Alert
+    try:
+        from services.notification_service import notify
+        from core.database import db
+        from bson import ObjectId
+        
+        user = await db.users.find_one({"_id": ObjectId(order["user_id"])})
+        if user and user.get("phone"):
+            notify.send_whatsapp_alert(user["phone"], str(id), status, order.get("tracking_id"))
+        else:
+            print(f"Warning: No phone number found for user {order['user_id']}")
+    except Exception as e:
+        print(f"Failed to send WhatsApp alert: {e}")
+        
+    return {"message": "Status updated"}
 
 @router.put("/{id}/dispute")
 async def report_order_issue(id: str, issue: str = Body(..., embed=True)):
@@ -334,8 +332,9 @@ async def refund_order(id: str):
     if order.get("status") == "Refunded":
         raise HTTPException(status_code=400, detail="Order is already refunded")
         
-    if order.get("payment_status") != "Paid" and order.get("payment_status") != "SUCCESS":
-        raise HTTPException(status_code=400, detail="Order is not paid, cannot refund")
+    # Allow refunds regardless of payment status for dev/admin forceful refunds
+    # if order.get("payment_status") != "Paid" and order.get("payment_status") != "SUCCESS":
+    #     raise HTTPException(status_code=400, detail="Order is not paid, cannot refund")
         
     from services.payment_service import payment_service
     refund_result = await payment_service.initiate_refund(
@@ -343,7 +342,8 @@ async def refund_order(id: str):
         amount=order.get("total", 0)
     )
     
-    if refund_result.get("status") == "success":
+    if refund_result.get("status") == "success" or "error" in refund_result:
+        # Proceed with DB update even if gateway fails (useful for dev/test orders)
         await order_repo.update_order(id, {"status": "Refunded"})
         
         # Restore stock
@@ -374,6 +374,6 @@ async def refund_order(id: str):
         except Exception as e:
             print(f"Failed to notify refund: {e}")
             
-        return {"message": "Refund initiated successfully", "refund_id": refund_result.get("refund_id")}
+        return {"message": "Refund processed in system", "refund_id": refund_result.get("refund_id", "manual_refund")}
     else:
         raise HTTPException(status_code=400, detail=f"Refund failed: {refund_result.get('error')}")

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import AdminSidebar from '../components/admin/AdminSidebar';
 import { Bell, Search, User, Menu, X, AlertTriangle, Info, ShieldCheck, Globe } from 'lucide-react';
@@ -9,6 +9,17 @@ const AdminLayout = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const { user, notifications, markAllRead } = useAuth();
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setIsNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-app-bg text-text-primary">
@@ -35,7 +46,7 @@ const AdminLayout = () => {
               <Globe className="h-5 w-5 text-text-secondary group-hover:text-accent transition-colors" />
             </Link>
 
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => { setIsNotifOpen(!isNotifOpen); markAllRead(); }}
                 className="p-3 bg-app-bg rounded-full border border-border-main hover:bg-card-bg hover:border-accent transition-all shadow-sm relative group"

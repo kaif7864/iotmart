@@ -27,6 +27,13 @@ async def get_dashboard_stats(range: str = "7D"):
     orders = []
     for order in orders_raw:
         created = order.get("created_at")
+        if not created and "_id" in order:
+            try:
+                # Fallback to MongoDB's natural ObjectId timestamp
+                created = order["_id"].generation_time
+            except:
+                pass
+                
         if not created:
             if range == "ALL":
                 orders.append(order)
@@ -59,8 +66,16 @@ async def get_dashboard_stats(range: str = "7D"):
     # Calculate revenue data by day/hour based on range
     revenue_map = {}
     for order in orders:
-        if "created_at" in order and order.get("status") in valid_revenue_statuses:
-            created = order["created_at"]
+        if order.get("status") in valid_revenue_statuses:
+            created = order.get("created_at")
+            if not created and "_id" in order:
+                try:
+                    created = order["_id"].generation_time
+                except:
+                    pass
+            if not created:
+                continue
+                
             if isinstance(created, str):
                 try:
                     created = datetime.fromisoformat(created.replace('Z', '+00:00')).replace(tzinfo=None)

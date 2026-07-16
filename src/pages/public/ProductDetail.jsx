@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  ArrowLeft, Star, ShoppingCart, CheckCircle, Package, PackageX, 
-  Truck, Shield, RotateCcw, Loader2, MessageSquare, Plus, Upload, 
-  Camera, Image as ImageIcon, Scale, Play, Activity, Cpu, Zap, 
+import {
+  ArrowLeft, Star, ShoppingCart, CheckCircle, Package, PackageX,
+  Truck, Shield, RotateCcw, Loader2, MessageSquare, Plus, Upload,
+  Camera, Image as ImageIcon, Scale, Play, Activity, Cpu, Zap,
   Thermometer, Droplets, Info, ExternalLink, X, Wifi
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -86,27 +86,27 @@ const ProductDetail = () => {
 
   const handleReviewSubmit = async () => {
     if (!user) {
-        alert("Please login to post a review");
-        return;
+      alert("Please login to post a review");
+      return;
     }
     const newReview = {
-        user_id: user._id,
-        user: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.name || "User",
-        rating: userRating,
-        comment: reviewText,
-        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-        images: []
+      user_id: user._id,
+      user: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.name || "User",
+      rating: userRating,
+      comment: reviewText,
+      date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      images: []
     };
 
     try {
-        await addProductReview(id, newReview);
-        setReviews([newReview, ...reviews]);
-        setReviewText('');
-        setShowReviewForm(false);
-        const updatedProduct = await getProductById(id);
-        setProduct(updatedProduct);
+      await addProductReview(id, newReview);
+      setReviews([newReview, ...reviews]);
+      setReviewText('');
+      setShowReviewForm(false);
+      const updatedProduct = await getProductById(id);
+      setProduct(updatedProduct);
     } catch (error) {
-        console.error("Error submitting review:", error);
+      console.error("Error submitting review:", error);
     }
   };
 
@@ -143,22 +143,22 @@ const ProductDetail = () => {
 
   return (
     <div className="pt-32 pb-32 min-h-screen bg-app-bg">
-      <SEO 
-        title={`${product.name} | IoTMart`} 
-        description={product.description?.substring(0, 150) || `Buy ${product.name} at IoTMart. High-quality IoT components.`} 
+      <SEO
+        title={`${product.name} | IoTMart`}
+        description={product.description?.substring(0, 150) || `Buy ${product.name} at IoTMart. High-quality IoT components.`}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link to="/shop" className="inline-flex items-center gap-2 text-text-secondary hover:text-accent transition-all mb-8 group text-[10px] font-black uppercase tracking-widest">
           <ArrowLeft className="h-4 w-4" /> Back to Shop
         </Link>
-        
+
         <div className="card rounded-sm overflow-hidden relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-            
+
             {/* Image Section with Video/Sim Overlays */}
             <div className="bg-surface-hover flex items-center justify-center p-8 md:p-12 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-border-main">
               <div className="absolute top-8 left-8 z-20 flex flex-col gap-3">
-                <button 
+                <button
                   onClick={() => setShowVideo(true)}
                   className="w-12 h-12 bg-card-bg rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all text-accent group"
                 >
@@ -174,20 +174,20 @@ const ProductDetail = () => {
                 </button> */}
               </div>
 
-              <motion.img 
+              <motion.img
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                src={product.image} 
-                alt={product.name} 
+                src={product.image}
+                alt={product.name}
                 className="w-full max-w-sm h-auto object-contain relative z-10 drop-shadow-2xl"
               />
-              
+
               {/* Background Glow */}
               <div className="absolute inset-0 bg-gradient-to-tr from-accent/5 to-transparent"></div>
             </div>
 
             {/* Product Info */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
@@ -198,13 +198,13 @@ const ProductDetail = () => {
                 {product.inStock && (
                   <div className="flex items-center gap-1.5 text-status-success text-[10px] font-black uppercase tracking-widest">
                     <div className="w-1.5 h-1.5 bg-status-success rounded-full animate-pulse" />
-                    Ready to Ship
+                    Ready to Ship {product.stockQuantity !== undefined ? `(${product.stockQuantity} Available)` : ''}
                   </div>
                 )}
               </div>
-              
+
               <h1 className="text-4xl md:text-5xl font-black text-text-primary mb-6 tracking-tighter uppercase leading-[0.9]">{product.name}</h1>
-              
+
               <div className="flex items-center gap-8 mb-10">
                 <div className="text-5xl font-black text-text-primary tracking-tighter">
                   {formatPrice(product.price)}
@@ -283,7 +283,7 @@ const ProductDetail = () => {
                     </button>
                   </>
                 ) : (
-                  <button 
+                  <button
                     className="flex-grow btn-premium py-5 text-sm font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3"
                     onClick={() => onAddToCart(product)}
                   >
@@ -293,18 +293,17 @@ const ProductDetail = () => {
                 )}
                 <button
                   onClick={() => addToCompare(product)}
-                  className={`px-8 py-5 border-2 rounded-sm transition-all flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest ${
-                    isInCompare
+                  className={`px-8 py-5 border-2 rounded-sm transition-all flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest ${isInCompare
                       ? 'border-accent bg-accent text-text-inverse shadow-lg shadow-accent/20'
                       : 'border-border-subtle text-text-secondary hover:border-accent hover:text-accent'
-                  }`}
+                    }`}
                 >
                   <Scale className="h-5 w-5" />
                   {isInCompare ? 'Comparing' : 'Compare Specs'}
                 </button>
               </div>
             </motion.div>
-            
+
           </div>
         </div>
 
@@ -327,7 +326,7 @@ const ProductDetail = () => {
                   </div>
                   <h3 className="text-2xl font-black text-text-primary uppercase tracking-tight mb-2">Live Sensor Simulation</h3>
                   <p className="text-text-muted text-sm mb-12">Virtualizing the technical capabilities of {product.name}</p>
-                  
+
                   <div className="flex items-center justify-center gap-16 mb-12">
                     <div className="text-center">
                       <div className="w-32 h-32 rounded-full border-8 border-border-subtle border-t-accent flex items-center justify-center animate-slow-spin mb-4">
@@ -407,7 +406,7 @@ const ProductDetail = () => {
               </table>
             </div>
           </div>
-          
+
           <div className="flex flex-col justify-center space-y-8">
             <h2 className="text-4xl font-black text-text-primary tracking-tighter uppercase">Engineered for <span className="text-accent">Precision</span></h2>
             <p className="text-text-secondary text-lg leading-relaxed font-medium">
@@ -463,84 +462,84 @@ const ProductDetail = () => {
                 </div>
               ) : (
                 reviews.map((rev, i) => (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-50px" }}
                     transition={{ delay: i * 0.1 }}
-                    key={i} 
+                    key={i}
                     className="group bg-card-bg border border-border-main/50 hover:border-accent/30 rounded-2xl p-8 shadow-sm hover:shadow-xl hover:shadow-accent/5 transition-all duration-300 relative overflow-hidden"
                   >
-                  <div className="absolute inset-0 bg-gradient-to-r from-accent/0 via-accent/[0.02] to-accent/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                  
-                  <div className="flex justify-between items-start mb-6 relative z-10">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-purple-500 p-[2px]">
-                        <div className="w-full h-full rounded-full bg-card-bg flex items-center justify-center text-text-primary font-bold text-lg">
-                          {rev.user.charAt(0)}
+                    <div className="absolute inset-0 bg-gradient-to-r from-accent/0 via-accent/[0.02] to-accent/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+
+                    <div className="flex justify-between items-start mb-6 relative z-10">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-purple-500 p-[2px]">
+                          <div className="w-full h-full rounded-full bg-card-bg flex items-center justify-center text-text-primary font-bold text-lg">
+                            {rev.user.charAt(0)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-text-primary text-sm">{rev.user}</h4>
+                            {rev.verified_buyer && (
+                              <span className="bg-emerald-500/10 text-emerald-600 px-2.5 py-0.5 rounded-full flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                                <CheckCircle className="w-3 h-3" />
+                                Verified
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-medium text-text-muted">{rev.date}</p>
                         </div>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-bold text-text-primary text-sm">{rev.user}</h4>
-                          {rev.verified_buyer && (
-                            <span className="bg-emerald-500/10 text-emerald-600 px-2.5 py-0.5 rounded-full flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider border border-emerald-500/20">
-                              <CheckCircle className="w-3 h-3" />
-                              Verified
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs font-medium text-text-muted">{rev.date}</p>
+                      <div className="flex gap-0.5 bg-surface px-2.5 py-1.5 rounded-full border border-border-main">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <Star key={s} className={`h-3.5 w-3.5 ${s <= rev.rating ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_2px_rgba(251,191,36,0.4)]' : 'text-border-subtle'}`} />
+                        ))}
                       </div>
                     </div>
-                    <div className="flex gap-0.5 bg-surface px-2.5 py-1.5 rounded-full border border-border-main">
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <Star key={s} className={`h-3.5 w-3.5 ${s <= rev.rating ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_2px_rgba(251,191,36,0.4)]' : 'text-border-subtle'}`} />
+
+                    <p className="text-text-secondary text-sm leading-relaxed mb-6 relative z-10">{rev.comment}</p>
+
+                    <div className="flex gap-3 relative z-10">
+                      {[1, 2].map(idx => (
+                        <div key={idx} className="w-16 h-16 rounded-xl bg-surface border border-border-main flex items-center justify-center overflow-hidden hover:border-accent cursor-pointer transition-colors">
+                          <ImageIcon className="h-5 w-5 text-text-muted/40" />
+                        </div>
                       ))}
                     </div>
-                  </div>
-                  
-                  <p className="text-text-secondary text-sm leading-relaxed mb-6 relative z-10">{rev.comment}</p>
-                  
-                  <div className="flex gap-3 relative z-10">
-                    {[1, 2].map(idx => (
-                      <div key={idx} className="w-16 h-16 rounded-xl bg-surface border border-border-main flex items-center justify-center overflow-hidden hover:border-accent cursor-pointer transition-colors">
-                        <ImageIcon className="h-5 w-5 text-text-muted/40" />
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )))}
+                  </motion.div>
+                )))}
             </div>
-            
+
             <div className="space-y-6">
               <div className="bg-gradient-to-b from-surface to-card-bg border border-border-main rounded-2xl p-8 sticky top-32 shadow-sm">
                 <h4 className="text-base font-bold text-text-primary mb-8 tracking-tight flex items-center gap-2">
                   <Star className="w-5 h-5 text-accent" />
                   Rating Breakdown
                 </h4>
-                
+
                 <div className="space-y-4">
                   {[5, 4, 3, 2, 1].map(s => {
                     const count = reviews.filter(r => Math.round(r.rating) === s).length;
                     const percentage = reviews.length > 0 ? `${Math.round((count / reviews.length) * 100)}%` : '0%';
-                    
+
                     return (
                       <div key={s} className="flex items-center gap-3 group">
                         <div className="flex items-center gap-1 w-8">
                           <span className="text-xs font-bold text-text-primary">{s}</span>
                           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                         </div>
-                        
+
                         <div className="flex-grow h-2.5 bg-border-main/50 rounded-full overflow-hidden">
-                          <motion.div 
+                          <motion.div
                             initial={{ width: 0 }}
                             whileInView={{ width: percentage }}
                             transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
-                            className={`h-full rounded-full ${s >= 4 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : s === 3 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`} 
+                            className={`h-full rounded-full ${s >= 4 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : s === 3 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-rose-400 to-rose-500'}`}
                           />
                         </div>
-                        
+
                         <span className="text-xs font-bold text-text-muted w-10 text-right group-hover:text-text-primary transition-colors">
                           {percentage}
                         </span>
@@ -548,7 +547,7 @@ const ProductDetail = () => {
                     );
                   })}
                 </div>
-                
+
                 <div className="mt-10 p-5 bg-card-bg rounded-xl border border-border-main shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-1 h-full bg-accent"></div>
                   <p className="text-xs font-bold text-text-primary mb-1 uppercase tracking-wider">Expert Verdict</p>

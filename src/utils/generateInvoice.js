@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const generateInvoice = (order, user, currency = { code: 'INR', symbol: '₹', rate: 1 }) => {

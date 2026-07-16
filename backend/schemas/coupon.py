@@ -9,6 +9,9 @@ class CouponBase(BaseModel):
     min_order_value: float = 0.0
     valid_until: Optional[datetime] = None
     is_active: bool = True
+    description: Optional[str] = None
+    usage_limit: Optional[int] = None
+    per_user_limit: int = 1
 
 class CouponCreate(CouponBase):
     pass
