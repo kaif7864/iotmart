@@ -134,6 +134,39 @@ def send_order_confirmation_email(to_email: str, order_id: str, total_amount: fl
     """
     return _send_email(to_email, subject, plain_text, html_content)
 
+def send_giftcard_email(to_email: str, recipient_name: str, sender_name: str, amount: float, code: str, message: str):
+    subject = f"You received a ₹{amount} IoTMart Gift Card from {sender_name}!"
+    
+    plain_text = f"Hello {recipient_name},\n\n{sender_name} has sent you a ₹{amount} gift card for IoTMart!\n\nMessage: {message}\n\nYour Gift Card Code: {code}\n\nRedeem it at {settings.FRONTEND_URL}/profile\n\n- The IoTMart Team"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 40px 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <div style="background-color: #10b981; padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; letter-spacing: 2px;">IoTMart Gift Card</h1>
+            </div>
+            <div style="padding: 40px 30px;">
+                <h2 style="color: #1a1a1a; margin-top: 0;">Hi {recipient_name},</h2>
+                <p style="color: #52525b; line-height: 1.6; font-size: 16px;"><strong>{sender_name}</strong> has sent you a ₹{amount} gift card for IoTMart!</p>
+                <div style="background-color: #f8fafc; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
+                    <p style="margin: 0; color: #334155; font-style: italic;">"{message}"</p>
+                </div>
+                <div style="text-align: center; margin: 35px 0; background-color: #f1f5f9; padding: 20px; border-radius: 8px;">
+                    <p style="margin: 0 0 10px 0; color: #64748b; font-size: 14px;">Your Gift Card Code:</p>
+                    <h3 style="margin: 0; color: #0f172a; font-size: 24px; letter-spacing: 4px; font-family: monospace;">{code}</h3>
+                </div>
+                <div style="text-align: center; margin: 35px 0;">
+                    <a href="{settings.FRONTEND_URL}/profile" style="background-color: #10b981; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Redeem Now</a>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return _send_email(to_email, subject, plain_text, html_content)
+
 def _send_email(to_email: str, subject: str, plain_text: str, html_content: str) -> bool:
     logger.info(f"🚀 [EMAIL OUTGOING] To: {to_email} | Sub: {subject}")
     

@@ -14,6 +14,7 @@ class UserBase(BaseModel):
     phone: str
     role: str = "user"
     status: str = "active"
+    avatar: Optional[str] = None
     wishlist: List[str] = [] # List of product IDs
     recently_viewed: List[str] = [] # List of product IDs
     addresses: List[Address] = []
@@ -22,6 +23,7 @@ class UserBase(BaseModel):
     is_2fa_enabled: bool = False
     two_factor_type: str = "email" # "email" or "authenticator"
     two_factor_secret: Optional[str] = None
+    wallet_balance: float = 0.0
 
 class UserCreate(UserBase):
     password: str

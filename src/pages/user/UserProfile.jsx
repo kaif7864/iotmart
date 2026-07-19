@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { load } from '@cashfreepayments/cashfree-js';
 import { 
   User, Package, MapPin, Heart, LogOut, 
   ChevronRight, ExternalLink, Shield, Bell, 
   Settings, Clock, CreditCard, ChevronDown, Plus, 
-  Trash2, Eye, LayoutDashboard, History, Download, Loader2, CheckCircle2, X, Ticket, Gift, ShieldCheck, Mail, Phone, Star
+  Trash2, Eye, LayoutDashboard, History, Download, Loader2, CheckCircle2, X, Ticket, Gift, ShieldCheck, Mail, Phone, Star, Camera, RefreshCw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getOrdersByUser, getUserTransactions, getLiveTracking, updateUserProfile, sendVerification, verifyMobile, changeUserPassword, updateOrderStatus, updateIdentity, forgotPassword, deactivateAccount, addProductReview } from '../../services/api';
+import { getOrdersByUser, getUserTransactions, getLiveTracking, updateUserProfile, sendVerification, verifyMobile, changeUserPassword, updateOrderStatus, updateIdentity, forgotPassword, deactivateAccount, addProductReview, getActiveCoupons, redeemGiftCard, purchaseGiftCard, createCashfreeSession, getGiftcardSettings } from '../../services/api';
 import toast from 'react-hot-toast';
 import OrderTimeline from '../../components/ui/OrderTimeline';
 import { generateInvoice } from '../../utils/generateInvoice';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { Skeleton, SkeletonGrid, SkeletonText } from '../../components/common';
 import { SectionCard, SectionHeader, TabNav } from '../../components/common';
 import { useCart } from '../../hooks/useCart';
@@ -33,7 +35,7 @@ import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 const UserProfile = () => {
   const { cartItems, onAddToCart, onUpdateQuantity, onRemoveFromCart } = useCart();
-  const { user, setUser, logout, addresses, addAddress, removeAddress, formatPrice, currency } = useAuth();
+  const { user, setUser, updateUserSession, logout, addresses, addAddress, removeAddress, formatPrice, currency } = useAuth();
   const { isInstallable, triggerInstall } = usePWAInstall();
   const { wishlist, toggleWishlist } = useWishlist();
   const [orders, setOrders] = useState([]);
@@ -41,8 +43,129 @@ const UserProfile = () => {
   const [expandedTxnId, setExpandedTxnId] = useState(null);
   const [reviewModal, setReviewModal] = useState({ isOpen: false, productId: null, productName: '' });
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+
+  // Gift Card State
+  const [giftCardTiers, setGiftCardTiers] = useState([
+    {pay: 500, get: 500, label: ""},
+    {pay: 1000, get: 1100, label: "10% Extra"},
+    {pay: 2000, get: 2300, label: "15% Extra"},
+    {pay: 5000, get: 6000, label: "20% Extra"}
+  ]);
+  
+  useEffect(() => {
+    const fetchGCSettings = async () => {
+      try {
+        const res = await getGiftcardSettings();
+        if (res.data?.tiers) setGiftCardTiers(res.data.tiers);
+      } catch (err) {
+        console.error("Failed to fetch GC settings", err);
+      }
+    };
+    fetchGCSettings();
+  }, []);
+
+  const [giftCardCode, setGiftCardCode] = useState('');
+  const [giftForm, setGiftForm] = useState({ amount: '1000', recipient_email: '', recipient_name: '', message: '' });
+  const [isRedeemingGC, setIsRedeemingGC] = useState(false);
+  const [isRefreshingWallet, setIsRefreshingWallet] = useState(false);
+  const [isPurchasingGC, setIsPurchasingGC] = useState(false);
+
+  const handleRefreshWallet = async () => {
+    if (!user?._id) return;
+    setIsRefreshingWallet(true);
+    try {
+      // Inline fetch to avoid circular deps with apiClient
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:8000/api/users/${user._id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data && data.wallet_balance !== undefined) {
+        updateUserSession({ ...user, wallet_balance: data.wallet_balance });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTimeout(() => setIsRefreshingWallet(false), 500); // 500ms artificial delay for smooth animation
+    }
+  };
+
+  const handleRedeemGiftCard = async (e) => {
+    e.preventDefault();
+    if (!giftCardCode || giftCardCode.length !== 16) {
+      toast.error("Please enter a valid 16-digit code");
+      return;
+    }
+    setIsRedeemingGC(true);
+    try {
+      const res = await redeemGiftCard(giftCardCode);
+      if (res.data?.success || res.success) {
+        toast.success(res.data?.message || res.message || "Gift card redeemed!");
+        setGiftCardCode('');
+        updateUserSession({ ...user, wallet_balance: res.data?.new_balance || res.new_balance });
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to redeem gift card");
+    } finally {
+      setIsRedeemingGC(false);
+    }
+  };
+
+  const handlePurchaseGiftCard = async (e) => {
+    e.preventDefault();
+    setIsPurchasingGC(true);
+    try {
+      // 1. Load cashfree SDK
+      const cashfree = await load({ mode: import.meta.env.VITE_CASHFREE_MODE || "sandbox" });
+      
+      // 2. Create payment session for gift card amount
+      const sessionRes = await createCashfreeSession({
+        order_amount: parseFloat(giftForm.amount) * currency.rate,
+        order_currency: currency.code,
+        customer_id: user?._id || "guest",
+        customer_phone: user?.phone || "9999999999",
+        customer_email: user?.email || "guest@iotmart.com",
+        customer_name: (user?.first_name ? `${user.first_name} ${user.last_name || ''}` : "Guest User").trim()
+      });
+      
+      const { payment_session_id } = sessionRes.data;
+      
+      // 3. Open Cashfree widget
+      let checkoutOptions = {
+          paymentSessionId: payment_session_id,
+          redirectTarget: "_modal",
+      };
+      
+      cashfree.checkout(checkoutOptions).then(async (result) => {
+          if (result.error) {
+              toast.error("Payment failed: " + result.error.message);
+              setIsPurchasingGC(false);
+          }
+          if (result.paymentDetails) {
+              // Payment successful! Now actually generate the gift card in DB.
+              try {
+                const res = await purchaseGiftCard(giftForm);
+                if (res.data?.success || res.success) {
+                  toast.success(res.data?.message || res.message || "Gift card purchased successfully!");
+                  setGiftForm({ amount: '1000', recipient_email: '', recipient_name: '', message: '' });
+                }
+              } catch (err) {
+                toast.error("Gift card API failed after payment. Please contact support.");
+              } finally {
+                setIsPurchasingGC(false);
+              }
+          }
+      });
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to initialize payment gateway");
+      setIsPurchasingGC(false);
+    }
+  };
 
   const [scheduledRemovals, setScheduledRemovals] = useState({});
+  const fileInputRef = useRef(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const handleWishlistAddToCart = (product) => {
     onAddToCart(product);
@@ -329,6 +452,16 @@ const UserProfile = () => {
     };
     fetchOrders();
 
+    const fetchCoupons = async () => {
+      try {
+        const couponsData = await getActiveCoupons();
+        setAvailableCoupons(couponsData);
+      } catch (e) {
+        console.error("Error fetching coupons:", e);
+      }
+    };
+    fetchCoupons();
+
     // Load recently viewed from localStorage
     const saved = JSON.parse(localStorage.getItem('recently_viewed') || '[]');
     setRecentlyViewed(saved);
@@ -382,6 +515,46 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
     }
   };
 
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Basic validation
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) { // 2MB
+      toast.error('Image size must be less than 2MB');
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result;
+        try {
+          if (!user?._id) throw new Error("User ID missing");
+          const res = await updateUserProfile(user._id, { ...profileData, avatar: base64String });
+          if (res.success && res.user) {
+            setUser(res.user);
+            localStorage.setItem('user_session', JSON.stringify(res.user));
+            toast.success("Profile picture updated!");
+          }
+        } catch(err) {
+            toast.error("Failed to upload avatar");
+        } finally {
+            setIsUploadingAvatar(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error(error);
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const tabs = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'settings', label: 'My Profile', icon: User },
@@ -398,68 +571,110 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
 
 
   return (
-    <div className="pt-32 pb-32 min-h-screen bg-app-bg">
+    <div className="pt-28 md:pt-32 pb-32 min-h-screen bg-app-bg relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Master Container */}
-        <div className="card rounded-[40px] shadow-xl overflow-hidden">
+        <div className="bg-card-bg/80 backdrop-blur-2xl border border-border-main rounded-[40px] shadow-[0_0_80px_rgba(2,132,199,0.1)] overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none rounded-[40px]"></div>
           
           {/* Profile Header Card */}
-          <div className="bg-gradient-to-r from-surface-dark to-[#1e293b] p-8 md:p-10 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-accent/20 blur-[150px] rounded-full" />
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-accent flex items-center justify-center text-text-inverse font-black text-4xl shadow-xl shadow-accent/20 border-4 border-card-bg/10">
-              {user.first_name ? user.first_name.charAt(0) : 'U'}
-            </div>
-            <div className="flex-grow text-center md:text-left">
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-3">
-                <h1 className="text-3xl md:text-5xl font-black text-text-inverse tracking-tighter uppercase">{user.first_name} {user.last_name}</h1>
-                <span className="px-3 py-1 bg-card-bg/10 border border-card-bg/20 rounded-sm label-caps text-text-inverse">
-                  Verified Customer
-                </span>
-              </div>
-              <p className="text-text-muted font-medium text-lg">{user.email}</p>
-            </div>
-            <button
-              onClick={logout}
-              className="px-8 py-4 bg-card-bg/5 border border-card-bg/10 text-text-inverse rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-status-danger hover:border-status-danger transition-all"
-            >
-              Log Out
-            </button>
-          </div>
-        </div>
+          <div className="bg-surface-dark p-8 md:p-10 relative overflow-hidden border-b border-border-main z-10 shadow-sm">
+            
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay pointer-events-none"></div>
 
-        <div className="flex flex-col lg:flex-row min-h-[600px]">
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+              <div className="relative">
+                <div 
+                  className="w-24 h-24 md:w-32 md:h-32 rounded-full flex items-center justify-center text-white font-black text-4xl border-2 border-border-main relative overflow-hidden group cursor-pointer bg-card-bg"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input type="file" ref={fileInputRef} onChange={handleAvatarChange} accept="image/*" className="hidden" />
+                  {isUploadingAvatar ? (
+                    <div className="w-full h-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                      <Loader2 className="w-8 h-8 animate-spin text-white" />
+                    </div>
+                  ) : user.avatar ? (
+                    <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-accent text-white">
+                        <span>{user.first_name ? user.first_name.charAt(0) : 'U'}</span>
+                    </div>
+                  )}
+                  
+                  {/* Hover overlay for upload */}
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                    <Camera className="w-8 h-8 text-white mb-2" />
+                  </div>
+                </div>
+                
+                {/* Permanent Edit Badge */}
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 w-8 h-8 md:w-10 md:h-10 bg-accent hover:bg-accent-hover text-white rounded-full flex items-center justify-center border-2 border-surface-dark transition-transform hover:scale-110 z-20"
+                  title="Change Profile Picture"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="flex-grow text-center md:text-left">
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
+                  <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter uppercase">{user.first_name} {user.last_name}</h1>
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-accent/10 border border-accent/20 rounded-md">
+                    <ShieldCheck className="w-3 h-3 text-accent" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-accent">
+                      Verified Customer
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center md:justify-start gap-2 text-text-muted font-medium text-base">
+                  <Mail className="w-4 h-4 opacity-70" />
+                  <span>{user.email}</span>
+                </div>
+              </div>
+              
+              <button
+                onClick={logout}
+                className="px-6 py-3 bg-transparent border border-status-danger text-status-danger rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-status-danger hover:text-white transition-colors duration-200 flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Log Out
+              </button>
+            </div>
+          </div>
+
+        <div className="flex flex-col lg:flex-row min-h-[600px] relative z-10">
             {/* Sidebar Navigation */}
-            <aside className="w-full lg:w-72 flex-shrink-0 bg-surface lg:border-r border-b lg:border-b-0 border-border-subtle p-4 lg:p-6 overflow-hidden">
-              <nav className="flex lg:block overflow-x-auto lg:overflow-visible space-x-2 lg:space-x-0 lg:space-y-1 pb-4 lg:pb-0 scrollbar-hide lg:sticky lg:top-32">
+            <aside className="w-full lg:w-72 flex-shrink-0 lg:border-r border-b lg:border-b-0 border-border-main p-4 lg:p-6 bg-card-bg/30 relative">
+              <nav className="flex lg:flex-col overflow-x-auto lg:overflow-visible space-x-2 lg:space-x-0 lg:space-y-2 pb-4 lg:pb-0 scrollbar-hide lg:sticky lg:top-32">
                 {tabs.map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-shrink-0 lg:w-full flex items-center gap-2 lg:gap-4 px-4 py-3 lg:px-5 lg:py-4 rounded-full lg:rounded-sm text-[10px] font-black uppercase tracking-widest transition-all ${
+                    className={`flex-shrink-0 lg:w-full flex items-center gap-3 lg:gap-4 px-5 py-3 lg:px-6 lg:py-4 rounded-full lg:rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-300 ${
                       activeTab === tab.id
-                        ? 'bg-accent text-text-inverse shadow-lg shadow-accent/20'
-                        : 'bg-card-bg lg:bg-transparent text-text-secondary hover:bg-surface-hover hover:text-accent'
+                        ? 'bg-accent/10 text-accent border border-accent/30 shadow-[0_0_20px_rgba(2,132,199,0.15)]'
+                        : 'bg-card-bg/50 border border-transparent text-text-secondary hover:bg-surface-hover hover:text-accent hover:border-border-main'
                     }`}
                   >
-                    <tab.icon className="h-4 w-4 flex-shrink-0" />
+                    <tab.icon className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : ''}`} />
                     {tab.label}
                   </button>
                 ))}
                 
-                <div className="hidden lg:block pt-4 mt-4 border-t border-border-subtle space-y-2">
+                <div className="hidden lg:block pt-4 mt-6 border-t border-border-main space-y-2">
                   {isInstallable && (
                     <button
                       onClick={triggerInstall}
-                      className="w-full flex items-center gap-4 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-accent hover:bg-accent/10 rounded-sm transition-all text-left"
+                      className="w-full flex items-center gap-4 px-5 py-4 text-[10px] font-black uppercase tracking-[0.15em] text-accent hover:bg-accent/10 rounded-xl transition-all text-left"
                     >
                       <Download className="h-4 w-4" /> Install App
                     </button>
                   )}
                   <button
                     onClick={logout}
-                    className="w-full flex items-center gap-4 px-5 py-4 rounded-sm text-[10px] font-black uppercase tracking-widest transition-all text-status-danger hover:bg-status-danger-bg"
+                    className="w-full flex items-center gap-4 px-5 py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all text-status-danger hover:bg-status-danger/10 hover:border hover:border-status-danger/30"
                   >
                     <LogOut className="h-4 w-4" />
                     Logout
@@ -469,29 +684,30 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
             </aside>
 
             {/* Main Dashboard Content */}
-            <main className="flex-grow p-4 md:p-10 min-w-0">
+            <main className="flex-grow p-4 md:p-10 min-w-0 bg-transparent">
             <AnimatePresence mode="wait">
               {activeTab === 'dashboard' && (
-                <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card rounded-[32px] p-10 space-y-10">
-                  <div className="flex items-center justify-between border-b border-border-subtle pb-6">
-                    <h3 className="heading-section flex items-center gap-3">
+                <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card-bg/40 backdrop-blur-xl border border-border-main rounded-[32px] p-6 md:p-10 space-y-10 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-border-main pb-6">
+                    <h3 className="text-2xl md:text-3xl font-black text-text-primary tracking-tighter uppercase flex items-center gap-3">
                       <LayoutDashboard className="h-6 w-6 text-accent" /> Account Overview
                     </h3>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
-                      { label: 'Total Orders', value: orders.length,    Icon: Package, bgClass: 'bg-accent-light' },
-                      { label: 'Saved Items',  value: wishlist.length,  Icon: Heart,   bgClass: 'bg-status-danger-bg' },
-                      { label: 'Addresses',    value: addresses.length, Icon: MapPin,  bgClass: 'bg-status-success-bg' },
-                    ].map(({ label, value, Icon, bgClass }) => (
-                      <div key={label} className={`${bgClass} p-8 rounded-2xl border border-border-subtle relative overflow-hidden group`}>
-                        <div className="absolute -right-6 -top-6 w-24 h-24 bg-card-bg/40 rounded-full group-hover:scale-150 transition-transform duration-500" />
+                      { label: 'Total Orders', value: orders.length,    Icon: Package, gradient: 'from-accent/20 to-transparent', color: 'text-accent' },
+                      { label: 'Saved Items',  value: wishlist.length,  Icon: Heart,   gradient: 'from-status-danger/20 to-transparent', color: 'text-status-danger' },
+                      { label: 'Addresses',    value: addresses.length, Icon: MapPin,  gradient: 'from-status-success/20 to-transparent', color: 'text-status-success' },
+                    ].map(({ label, value, Icon, gradient, color }) => (
+                      <div key={label} className="bg-card-bg/60 backdrop-blur-md p-8 rounded-3xl border border-border-main relative overflow-hidden group hover:border-accent transition-all duration-500 shadow-sm">
+                        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-50 group-hover:opacity-100 transition-opacity duration-500`}></div>
+                        <div className="absolute -right-6 -top-6 w-24 h-24 bg-card-bg/40 rounded-full group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
                         <div className="flex items-center justify-between mb-4 relative z-10">
-                          <p className="label-caps">{label}</p>
-                          <Icon className="h-5 w-5 text-accent" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">{label}</p>
+                          <Icon className={`h-5 w-5 ${color}`} />
                         </div>
-                        <h4 className="text-4xl font-black text-text-primary tracking-tighter relative z-10">{value}</h4>
+                        <h4 className="text-4xl md:text-5xl font-black text-text-primary tracking-tighter relative z-10">{value}</h4>
                       </div>
                     ))}
                   </div>
@@ -537,45 +753,76 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                   ) : expandedOrderId ? (
                     // Expanded Single Order View
                     orders.filter(o => o._id === expandedOrderId).map(order => (
-                      <div key={order._id} className="bg-card-bg rounded-[32px] border border-border-main shadow-lg overflow-hidden transition-all">
+                      <div key={order._id} className="bg-card-bg/40 backdrop-blur-2xl rounded-[32px] border border-border-main shadow-[0_0_60px_rgba(2,132,199,0.15)] overflow-hidden transition-all relative">
+                        <div className="absolute top-0 right-0 w-96 h-96 bg-accent/10 blur-[120px] rounded-full pointer-events-none" />
+                        
                         {/* Header Section */}
-                        <div className="bg-surface border-b border-border-subtle p-8 relative">
-                          <button onClick={() => setExpandedOrderId(null)} className="absolute top-8 left-6 w-11 h-11 card hover:border-accent rounded-full transition-all flex items-center justify-center shadow-sm z-10" title="Back to Orders">
-                            <ChevronDown className="h-5 w-5 rotate-90 text-text-primary" />
+                        <div className="bg-gradient-to-r from-surface-dark/90 to-[#1e293b]/90 border-b border-border-main p-8 relative z-10">
+                          <button onClick={() => setExpandedOrderId(null)} className="absolute top-8 left-6 w-11 h-11 bg-card-bg/50 backdrop-blur-md hover:bg-accent hover:border-accent hover:text-white rounded-full transition-all flex items-center justify-center shadow-lg border border-border-subtle z-20 group" title="Back to Orders">
+                            <ChevronDown className="h-5 w-5 rotate-90 group-hover:-translate-x-1 transition-transform" />
                           </button>
                           
-                          <div className="flex flex-wrap justify-between items-center gap-6 pl-16">
-                            <div className="flex items-center gap-6">
-                              <div className="w-14 h-14 card rounded-xl flex items-center justify-center text-accent">
-                                <Package className="h-7 w-7" />
+                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pl-16">
+                            <div className="flex items-center gap-5">
+                              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-inner ${
+                                order.status?.toLowerCase() === 'delivered' 
+                                  ? 'bg-status-success/20 text-status-success border-status-success/30' 
+                                  : order.status?.toLowerCase() === 'cancelled'
+                                  ? 'bg-status-danger/20 text-status-danger border-status-danger/30'
+                                  : 'bg-accent/20 text-accent border-accent/30'
+                              }`}>
+                                {order.status?.toLowerCase() === 'delivered' ? <CheckCircle2 className="h-7 w-7" /> : order.status?.toLowerCase() === 'cancelled' ? <X className="h-7 w-7" /> : <Package className="h-7 w-7" />}
                               </div>
                               <div>
-                                <p className="label-caps mb-1">Order ID</p>
-                                <p className="font-black text-text-primary uppercase tracking-tight text-lg">#{order._id.slice(-12)}</p>
+                                <div className="flex items-center gap-3 mb-1">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Order ID</p>
+                                  <span className={`px-2.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${
+                                    order.status?.toLowerCase() === 'delivered' 
+                                      ? 'bg-status-success/10 text-status-success border-status-success/30' 
+                                      : order.status?.toLowerCase() === 'cancelled'
+                                      ? 'bg-status-danger/10 text-status-danger border-status-danger/30'
+                                      : 'bg-accent/10 text-accent border-accent/30'
+                                  }`}>
+                                    {order.status}
+                                  </span>
+                                </div>
+                                <p className="font-black text-text-primary uppercase tracking-tight text-xl">#{order._id.slice(-12)}</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="label-caps mb-1">Total Value</p>
-                              <p className="text-2xl font-black text-accent tracking-tighter">{formatPrice(order.total || 0)}</p>
+                            <div className="text-left md:text-right pl-16 md:pl-0">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Total Paid</p>
+                              <p className="text-3xl font-black text-accent tracking-tighter">{formatPrice(order.total || 0)}</p>
                             </div>
                           </div>
                         </div>
 
                         {/* Items Section */}
-                        <div className="p-8 pb-4">
-                          <h4 className="label-caps mb-4">Purchased Items</h4>
-                          <div className="space-y-3">
+                        <div className="p-8 pb-4 relative z-10">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-text-muted mb-4">Purchased Items</h4>
+                          <div className="space-y-4">
                             {order.items.map((item, idx) => (
-                              <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 card rounded-2xl hover:border-accent/30 transition-all gap-4">
+                              <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-card-bg/60 backdrop-blur-md border border-border-subtle rounded-2xl hover:border-accent/50 hover:shadow-[0_0_30px_rgba(2,132,199,0.15)] transition-all gap-4 group">
                                 <div className="flex items-center gap-4">
-                                  <div className="w-2 h-2 rounded-full bg-accent shrink-0" />
-                                  <Link to={`/product/${item.slug || item.product_id}`} className="text-sm font-bold text-text-primary uppercase tracking-tight hover:text-accent transition-colors">
-                                    {item.name}
-                                  </Link>
+                                  <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 bg-surface rounded-xl border border-border-subtle p-1.5 relative overflow-hidden flex justify-center items-center">
+                                    {item.image ? (
+                                      <img src={item.image} alt={item.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
+                                    ) : (
+                                      <Package className="w-6 h-6 text-text-muted" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <Link to={`/product/${item.slug || item.product_id}`} className="text-sm md:text-base font-black text-text-primary uppercase tracking-tight hover:text-accent transition-colors line-clamp-2">
+                                      {item.name}
+                                    </Link>
+                                    <div className="flex items-center gap-3 mt-1.5">
+                                      <p className="text-[10px] text-text-muted uppercase tracking-widest">Unit: {formatPrice(item.price)}</p>
+                                      <span className="w-1 h-1 rounded-full bg-border-main"></span>
+                                      <p className="text-[10px] font-bold text-accent uppercase tracking-widest bg-accent/10 px-2 py-0.5 rounded-sm">Qty: {item.quantity}</p>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto">
-                                  <span className="label-caps bg-surface px-3 py-1 rounded-full whitespace-nowrap">Qty: {item.quantity}</span>
-                                  <span className="text-sm font-black text-text-secondary min-w-[80px] text-right">{formatPrice(item.price * item.quantity)}</span>
+                                <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto pl-18 sm:pl-0">
+                                  <span className="text-lg font-black text-accent">{formatPrice(item.price * item.quantity)}</span>
                                   
                                   {order.status === 'Delivered' && (
                                     <button 
@@ -583,9 +830,9 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                                         e.preventDefault();
                                         setReviewModal({ isOpen: true, productId: item.product_id, productName: item.name });
                                       }}
-                                      className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-accent/10 text-accent px-3 py-1.5 rounded-full hover:bg-accent hover:text-white transition-all ml-2 whitespace-nowrap"
+                                      className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider bg-accent/10 text-accent border border-accent/20 px-4 py-2 rounded-xl hover:bg-accent hover:text-white transition-all ml-2"
                                     >
-                                      <Star className="w-3 h-3" /> Rate
+                                      <Star className="w-3.5 h-3.5" /> Rate
                                     </button>
                                   )}
                                 </div>
@@ -593,18 +840,61 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                             ))}
                           </div>
                         </div>
+                        
+                        {/* Shipping & Billing Summary Section */}
+                        <div className="px-8 pb-4 relative z-10">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Shipping Details */}
+                            <div className="bg-card-bg/60 backdrop-blur-md border border-border-subtle p-6 rounded-2xl hover:border-accent/30 transition-colors">
+                              <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-text-muted mb-4 flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-accent" /> Shipping Address
+                              </h4>
+                              <div className="space-y-1 text-sm text-text-secondary">
+                                <p className="font-bold text-text-primary text-base">{user?.first_name} {user?.last_name}</p>
+                                <p className="pt-1">{order.shipping_address?.street || '123 Main Street'}</p>
+                                <p>{order.shipping_address?.city || 'City'}, {order.shipping_address?.state || 'State'} {order.shipping_address?.zip || '100001'}</p>
+                                <p className="pt-2 flex items-center gap-2 font-bold"><Phone className="w-3.5 h-3.5" /> +91 {user?.phone || '9876543210'}</p>
+                              </div>
+                            </div>
+                            
+                            {/* Payment Summary */}
+                            <div className="bg-card-bg/60 backdrop-blur-md border border-border-subtle p-6 rounded-2xl hover:border-accent/30 transition-colors">
+                              <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-text-muted mb-4 flex items-center gap-2">
+                                <CreditCard className="w-4 h-4 text-accent" /> Payment Summary
+                              </h4>
+                              <div className="space-y-3 text-sm">
+                                <div className="flex justify-between text-text-secondary">
+                                  <span>Subtotal</span>
+                                  <span className="font-bold text-text-primary">{formatPrice(order.total || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-text-secondary">
+                                  <span>Shipping Fee</span>
+                                  <span className="font-bold text-status-success uppercase text-[10px] tracking-widest bg-status-success/10 px-2 py-0.5 rounded">Free</span>
+                                </div>
+                                <div className="flex justify-between text-text-secondary">
+                                  <span>Discount</span>
+                                  <span className="font-bold text-text-primary">- ₹0.00</span>
+                                </div>
+                                <div className="pt-3 border-t border-border-subtle/50 flex justify-between items-center">
+                                  <span className="font-black text-text-primary uppercase tracking-widest text-xs">Total Paid</span>
+                                  <span className="font-black text-accent text-xl">{formatPrice(order.total || 0)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
 
                         {/* Timeline & Actions Section */}
-                        <div className="p-8 pt-4">
-                          <div className="card p-8 rounded-2xl mb-6 w-full">
+                        <div className="p-8 pt-4 relative z-10">
+                          <div className="bg-card-bg/60 backdrop-blur-md border border-border-subtle p-8 rounded-3xl mb-8 w-full shadow-sm">
                             <OrderTimeline status={order.status} />
                           </div>
                           
-                          <div className="flex flex-wrap gap-4 justify-end">
+                          <div className="flex flex-wrap gap-4 justify-end border-t border-border-subtle/50 pt-6">
                             {['Pending', 'Processing', 'Confirmed'].includes(order.status) && (
                               <button
                                 onClick={() => handleUpdateOrderStatus(order._id, 'Cancelled')}
-                                className="btn-outline border-status-danger text-status-danger hover:bg-status-danger hover:text-white px-8 py-4 text-xs rounded-xl transition-all"
+                                className="px-6 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-status-danger/10 text-status-danger border border-status-danger/30 hover:bg-status-danger hover:text-white transition-all shadow-[0_0_15px_rgba(239,68,68,0)] hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]"
                               >
                                 Cancel Order
                               </button>
@@ -612,7 +902,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                             {order.status === 'Delivered' && (
                               <button
                                 onClick={() => handleUpdateOrderStatus(order._id, 'Return Requested')}
-                                className="btn-outline border-status-warning text-status-warning hover:bg-status-warning hover:text-black px-8 py-4 text-xs rounded-xl transition-all"
+                                className="px-6 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-status-warning/10 text-status-warning border border-status-warning/30 hover:bg-status-warning hover:text-black transition-all shadow-[0_0_15px_rgba(245,158,11,0)] hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]"
                               >
                                 Request Return
                               </button>
@@ -620,14 +910,14 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                             {order.tracking_id && (
                               <button
                                 onClick={() => handleTrackShipment(order.tracking_id)}
-                                className="flex items-center justify-center gap-2 px-8 py-4 bg-status-success-bg text-status-success rounded-xl text-xs font-black uppercase tracking-widest hover:bg-status-success hover:text-text-inverse transition-all border border-status-success/20"
+                                className="px-6 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-status-success/10 text-status-success border border-status-success/30 hover:bg-status-success hover:text-white transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0)] hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]"
                               >
                                 <MapPin className="h-4 w-4" /> Track Live
                               </button>
                             )}
                             <button
                               onClick={() => generateInvoice(order, user, currency)}
-                              className="btn-dark flex items-center gap-2 px-8 py-4 text-xs rounded-xl"
+                              className="px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-accent to-accent-hover text-white transition-all flex items-center gap-2 shadow-lg hover:shadow-[0_0_25px_rgba(2,132,199,0.5)] hover:-translate-y-1"
                             >
                               <Download className="h-4 w-4" /> Download Invoice
                             </button>
@@ -639,33 +929,77 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                     // Compact Grid View
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {orders.length === 0 ? (
-                        <p className="text-text-muted italic text-sm p-10 bg-card-bg rounded-[32px] border border-dashed border-border-main text-center col-span-full">No orders found.</p>
+                        <p className="text-text-muted italic text-sm p-10 bg-card-bg/40 backdrop-blur-md rounded-[32px] border border-dashed border-border-main text-center col-span-full">No orders found.</p>
                       ) : orders.map((order) => (
                         <div 
                           key={order._id} 
                           onClick={() => setExpandedOrderId(order._id)}
-                          className="bg-card-bg p-6 rounded-[32px] border border-border-main cursor-pointer hover:shadow-xl hover:border-accent group transition-all"
+                          className="bg-card-bg/50 backdrop-blur-xl p-5 md:p-6 rounded-[28px] border border-border-main cursor-pointer hover:shadow-xl hover:border-accent/60 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group"
                         >
-                          <div className="flex justify-between items-start mb-6">
-                            <div className="w-12 h-12 card rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                              <Package className="h-5 w-5" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                          
+                          <div className="flex gap-4 relative z-10">
+                            {/* Layered Image Stack */}
+                            <div className="w-[100px] h-[95px] md:w-[120px] md:h-[110px] shrink-0 relative mr-2 md:mr-4">
+                              {order.items.slice(0, 3).map((item, index) => {
+                                const isLastVisible = index === 2;
+                                const extraCount = order.items.length - 3;
+                                
+                                return (
+                                  <div 
+                                    key={index} 
+                                    className="absolute w-20 h-20 md:w-24 md:h-24 bg-card-bg rounded-2xl border border-border-subtle p-2 shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_15px_30px_rgba(2,132,199,0.25)]"
+                                    style={{
+                                      left: `${index * 14}px`, 
+                                      top: `${index * 8}px`,
+                                      zIndex: 10 - index,
+                                      transform: `scale(${1 - index * 0.08})`,
+                                      opacity: 1 - (index * 0.15)
+                                    }}
+                                  >
+                                    {item.image ? (
+                                      <img src={item.image} className="w-full h-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-500" alt={item.name} />
+                                    ) : (
+                                      <Package className="w-8 h-8 text-text-muted opacity-50" />
+                                    )}
+                                    
+                                    {isLastVisible && extraCount > 0 && (
+                                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-10">
+                                        <span className="text-white font-black text-lg tracking-tight">+{extraCount}</span>
+                                        <span className="text-white/80 text-[8px] font-bold uppercase tracking-widest mt-0.5">More</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
-                            <span className={`badge-${order.status?.toLowerCase() === 'delivered' ? 'success' : 'info'}`}>
-                              {order.status}
-                            </span>
-                          </div>
-                          <div className="mb-4">
-                            <p className="label-caps mb-1">Order ID</p>
-                            <p className="text-sm font-black text-text-primary uppercase tracking-tight">#{order._id.slice(-8)}</p>
-                          </div>
-                          <div className="flex justify-between items-end pt-4 border-t border-border-subtle">
-                            <div>
-                              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Items</p>
-                              <p className="text-sm font-bold text-text-secondary">{order.items.length} {order.items.length === 1 ? 'Item' : 'Items'}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Total</p>
-                              <p className="text-lg font-black text-accent">{formatPrice(order.total || 0)}</p>
+
+                            {/* Details Section */}
+                            <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                              <div>
+                                <div className="flex justify-between items-start gap-2">
+                                  <h4 className="text-base md:text-lg font-black text-text-primary truncate" title={order.items.map(i => i.name).join(', ')}>
+                                     {order.items.length === 1 ? order.items[0]?.name : `${order.items[0]?.name} & ${order.items.length - 1} more`}
+                                  </h4>
+                                  <span className={`shrink-0 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${
+                                    order.status?.toLowerCase() === 'delivered' 
+                                      ? 'bg-status-success/15 text-status-success border-status-success/30' 
+                                      : order.status?.toLowerCase() === 'cancelled'
+                                      ? 'bg-status-danger/15 text-status-danger border-status-danger/30'
+                                      : 'bg-accent/15 text-accent border-accent/30'
+                                  }`}>
+                                    {order.status}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] font-bold text-text-muted mt-1.5 uppercase tracking-widest font-mono">
+                                  ID: #{order._id.slice(-8)}
+                                </p>
+                              </div>
+
+                              <div className="flex justify-between items-end mt-4 border-t border-border-subtle/50 pt-4">
+                                 <p className="text-xs font-bold text-text-secondary bg-surface px-2 py-1 rounded">{order.items.length} {order.items.length === 1 ? 'Item' : 'Items'}</p>
+                                 <p className="text-xl font-black text-text-primary">{formatPrice(order.total || 0)}</p>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -688,95 +1022,42 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                   ) : (
                     <div className="space-y-4">
                       {transactions.map((txn) => (
-                        <div key={txn._id} className="card rounded-[32px] overflow-hidden border border-border-main transition-all">
+                        <div key={txn._id} className="bg-card-bg/50 backdrop-blur-xl rounded-[28px] border border-border-main overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-accent/60 relative group">
+                            <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             <div 
                               onClick={() => setExpandedTxnId(expandedTxnId === txn._id ? null : txn._id)}
-                              className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between cursor-pointer hover:bg-surface-hover gap-4"
+                              className="p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between cursor-pointer relative z-10 gap-4"
                             >
-                              <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${txn.status === 'Success' || txn.status === 'Paid' ? 'bg-status-success-bg text-status-success' : txn.status === 'Failed' ? 'bg-status-danger-bg text-status-danger' : 'bg-status-warning-bg text-status-warning'}`}>
-                                  {txn.status === 'Success' || txn.status === 'Paid' ? <CheckCircle2 className="h-6 w-6" /> : txn.status === 'Failed' ? <X className="h-6 w-6" /> : <Clock className="h-6 w-6" />}
+                              <div className="flex items-center gap-5">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border shadow-inner ${
+                                  txn.status === 'Success' || txn.status === 'Paid' 
+                                    ? 'bg-status-success/20 text-status-success border-status-success/30' 
+                                    : txn.status === 'Failed' 
+                                    ? 'bg-status-danger/20 text-status-danger border-status-danger/30' 
+                                    : 'bg-status-warning/20 text-status-warning border-status-warning/30'
+                                }`}>
+                                  {txn.status === 'Success' || txn.status === 'Paid' ? <CheckCircle2 className="h-7 w-7" /> : txn.status === 'Failed' ? <X className="h-7 w-7" /> : <Clock className="h-7 w-7" />}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-sm font-bold text-text-primary uppercase tracking-tight truncate">Txn: #{txn._id.slice(-8)}</p>
-                                  <p className="text-xs text-text-muted mt-1 truncate">{new Date(txn.created_at).toLocaleString()} • {txn.payment_method}</p>
+                                  <div className="flex items-center gap-3 mb-1">
+                                    <p className="text-[10px] uppercase tracking-widest text-text-muted">Transaction ID</p>
+                                  </div>
+                                  <p className="text-base md:text-lg font-black text-text-primary uppercase tracking-tight truncate">#{txn._id.slice(-10)}</p>
+                                  <p className="text-[11px] font-bold text-text-muted mt-1 uppercase tracking-widest">{new Date(txn.created_at).toLocaleString()} • {txn.payment_method}</p>
                                 </div>
                               </div>
-                              <div className="text-left md:text-right flex items-center justify-between md:justify-end gap-4 w-full md:w-auto pl-16 md:pl-0">
-                                <div>
-                                  <p className="text-lg font-black text-text-primary">{formatPrice(txn.amount)}</p>
-                                  <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${txn.status === 'Success' || txn.status === 'Paid' ? 'text-status-success' : txn.status === 'Failed' ? 'text-status-danger' : 'text-status-warning'}`}>{txn.status}</p>
-                                </div>
-                                <ChevronDown className={`h-5 w-5 text-text-muted transition-transform shrink-0 ${expandedTxnId === txn._id ? 'rotate-180' : ''}`} />
+                              <div className="text-left md:text-right flex flex-col items-start md:items-end w-full md:w-auto pl-20 md:pl-0">
+                                <p className="text-xl font-black text-text-primary">{formatPrice(txn.amount)}</p>
+                                <p className={`text-[10px] font-black uppercase tracking-widest mt-1.5 border px-2 py-0.5 rounded inline-block ${
+                                  txn.status === 'Success' || txn.status === 'Paid' 
+                                    ? 'bg-status-success/10 text-status-success border-status-success/30' 
+                                    : txn.status === 'Failed' 
+                                    ? 'bg-status-danger/10 text-status-danger border-status-danger/30' 
+                                    : 'bg-status-warning/10 text-status-warning border-status-warning/30'
+                                }`}>{txn.status}</p>
                               </div>
                             </div>
-                          
-                          <AnimatePresence>
-                            {expandedTxnId === txn._id && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="border-t border-border-subtle bg-surface/50 overflow-hidden"
-                              >
-                                <div className="p-8 space-y-6">
-                                  {/* Receipt Style Header */}
-                                  <div className="flex justify-between items-start pb-6 border-b border-border-subtle border-dashed">
-                                    <div>
-                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Transaction Receipt</p>
-                                      <p className="text-sm font-bold text-text-primary">Ref: {txn._id}</p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Date & Time</p>
-                                      <p className="text-sm font-bold text-text-primary">{new Date(txn.created_at).toLocaleString()}</p>
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Details Grid */}
-                                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                                    <div>
-                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Payment Method</p>
-                                      <div className="flex items-center gap-2">
-                                        <CreditCard className="h-4 w-4 text-accent" />
-                                        <p className="text-sm font-bold text-text-primary">{txn.payment_method}</p>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Status</p>
-                                      <div className="flex items-center gap-2">
-                                        <span className={`w-2 h-2 rounded-full ${txn.status === 'Success' || txn.status === 'Paid' ? 'bg-status-success' : txn.status === 'Failed' ? 'bg-status-danger' : 'bg-status-warning'}`}></span>
-                                        <p className="text-sm font-bold text-text-primary uppercase">{txn.status}</p>
-                                      </div>
-                                    </div>
-                                    <div className="col-span-2 sm:col-span-1">
-                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Gateway Reference</p>
-                                      <p className="text-sm font-medium text-text-secondary break-all font-mono bg-app-bg px-3 py-2 rounded-lg border border-border-subtle inline-block">{txn.payment_id || 'N/A'}</p>
-                                    </div>
-                                    <div className="col-span-2 sm:col-span-1">
-                                      <p className="text-[10px] uppercase font-black tracking-widest text-text-muted mb-1">Associated Order Ref</p>
-                                      <p className="text-sm font-medium text-text-secondary break-all font-mono bg-app-bg px-3 py-2 rounded-lg border border-border-subtle inline-block">{txn.order_id || 'N/A'}</p>
-                                    </div>
-                                  </div>
 
-                                  {/* Amount Summary */}
-                                  <div className="pt-6 border-t border-border-subtle flex justify-between items-center bg-app-bg -mx-8 px-8 -mb-8 pb-8 mt-4 rounded-b-[32px]">
-                                    <div>
-                                      <p className="text-sm font-bold text-text-secondary uppercase tracking-tight">Total Amount</p>
-                                      {txn.status === 'Failed' && (
-                                        <p className="text-[10px] text-status-danger mt-1 max-w-[200px] sm:max-w-xs leading-tight">
-                                          Transaction declined or cancelled. No amount was charged.
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-3xl font-black text-text-primary tracking-tighter">{formatPrice(txn.amount)}</p>
-                                      <p className="text-xs text-text-muted font-bold tracking-widest">{txn.currency}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
                         </div>
                       ))}
                     </div>
@@ -786,93 +1067,327 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
 
               {activeTab === 'wishlist' && (
                 <motion.div key="wishlist" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {wishlist.map((product) => (
-                      <div key={product._id} className="bg-card-bg p-6 rounded-[32px] border border-border-main flex items-center gap-6 group hover:shadow-lg transition-all">
-                        <div className="w-24 h-24 bg-app-bg rounded-sm p-4 flex-shrink-0 border border-border-subtle">
-                          <img src={product.image} className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-grow">
-                          <h4 className="font-black text-text-primary text-sm uppercase tracking-tight line-clamp-1">{product.name}</h4>
-                          <p className="text-lg font-black text-accent mt-1">{formatPrice(product.price || 0)}</p>
-                          <div className="flex gap-2 mt-4">
-                            <Link to={`/product/${product.slug || product._id}`} className="px-4 py-2 bg-app-bg text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-surface-hover transition-all border border-border-main">View</Link>
-                            {(() => {
-                              const cartItem = cartItems.find(item => item._id === product._id);
-                              const quantityInCart = cartItem ? cartItem.quantity : 0;
-                              
-                              return quantityInCart > 0 ? (
-                                <div className="flex items-center bg-surface-hover rounded-md p-1 border border-border-main">
-                                  <button 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      if (quantityInCart === 1) {
-                                        onRemoveFromCart(product._id);
-                                        if (scheduledRemovals[product._id]) {
-                                          clearTimeout(scheduledRemovals[product._id]);
-                                          setScheduledRemovals(prev => { const next = {...prev}; delete next[product._id]; return next; });
-                                        }
-                                      }
-                                      else handleWishlistUpdateQuantity(product._id, quantityInCart - 1);
-                                    }}
-                                    className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent hover:bg-card-bg rounded transition-colors text-sm font-black"
-                                  >
-                                    -
-                                  </button>
-                                  <span className="w-8 text-center text-xs font-bold text-text-primary">
-                                    {quantityInCart}
-                                  </span>
-                                  <button 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      handleWishlistUpdateQuantity(product._id, quantityInCart + 1);
-                                    }}
-                                    className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-accent hover:bg-card-bg rounded transition-colors text-sm font-black"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              ) : (
-                                <button 
-                                  onClick={() => handleWishlistAddToCart(product)}
-                                  className="px-4 py-2 bg-accent text-white text-[10px] font-black uppercase tracking-widest rounded-sm hover:shadow-lg hover:shadow-accent/20 transition-all"
-                                >
-                                  Add to Cart
-                                </button>
-                              );
-                            })()}
-                            <button onClick={() => toggleWishlist(product)} className="px-2 py-2 text-text-muted hover:text-status-danger transition-all">
-                              <Trash2 className="h-4 w-4" />
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-3xl font-black text-text-primary tracking-tight">
+                      My Wishlist <span className="text-text-muted text-lg font-bold">({wishlist.length})</span>
+                    </h3>
+                  </div>
+
+                  {wishlist.length === 0 ? (
+                    <div className="py-24 flex flex-col items-center justify-center text-center">
+                      <div className="w-24 h-24 bg-surface rounded-full flex items-center justify-center mb-6 border border-border-subtle shadow-inner">
+                        <Heart className="w-10 h-10 text-text-muted opacity-50" />
+                      </div>
+                      <h4 className="text-2xl font-black text-text-primary mb-3">Your wishlist is empty</h4>
+                      <p className="text-text-muted text-base font-medium mb-8 max-w-md">
+                        Explore our awesome components and hit the heart icon to save them here for later!
+                      </p>
+                      <Link to="/products" className="px-8 py-4 bg-text-primary hover:bg-text-secondary text-white text-[12px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-black/10">
+                        Explore Products
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                      {wishlist.map((product) => (
+                        <div key={product._id} className="group flex flex-col bg-card-bg border border-border-subtle rounded-[24px] overflow-hidden hover:border-accent hover:shadow-[0_10px_40px_rgba(2,132,199,0.12)] hover:-translate-y-1 transition-all duration-300">
+                          
+                          {/* Image Box */}
+                          <div className="relative aspect-[4/3] bg-app-bg flex items-center justify-center p-6 overflow-hidden">
+                            {/* Floating Remove Button */}
+                            <button 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleWishlist(product);
+                              }} 
+                              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-card-bg/80 backdrop-blur-md flex items-center justify-center text-status-danger hover:bg-status-danger hover:text-white hover:scale-110 transition-all z-20 shadow-sm border border-white/10"
+                              title="Remove from wishlist"
+                            >
+                              <Heart className="w-4 h-4 fill-current" />
                             </button>
+                            
+                            <Link to={`/product/${product.slug || product._id}`} className="absolute inset-0 flex items-center justify-center p-6 z-10">
+                              <img src={product.image} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" alt={product.name} />
+                            </Link>
+                          </div>
+                          
+                          {/* Content */}
+                          <div className="p-5 flex flex-col flex-1 border-t border-border-subtle/50">
+                            <Link to={`/product/${product.slug || product._id}`} className="text-sm font-black text-text-primary leading-snug line-clamp-2 hover:text-accent transition-colors mb-2">
+                              {product.name}
+                            </Link>
+                            
+                            <div className="mt-auto pt-4 flex flex-col gap-3">
+                              <p className="text-lg font-black text-accent tracking-tight">{formatPrice(product.price || 0)}</p>
+                              
+                              {(() => {
+                                const cartItem = cartItems.find(item => item._id === product._id);
+                                const quantityInCart = cartItem ? cartItem.quantity : 0;
+                                
+                                return quantityInCart > 0 ? (
+                                  <div className="flex items-center justify-between bg-surface border border-border-subtle rounded-xl p-1 h-10 w-full">
+                                    <button 
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        if (quantityInCart === 1) {
+                                          onRemoveFromCart(product._id);
+                                          if (scheduledRemovals[product._id]) {
+                                            clearTimeout(scheduledRemovals[product._id]);
+                                            setScheduledRemovals(prev => { const next = {...prev}; delete next[product._id]; return next; });
+                                          }
+                                        }
+                                        else handleWishlistUpdateQuantity(product._id, quantityInCart - 1);
+                                      }}
+                                      className="w-8 h-full flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-card-bg rounded-lg transition-colors text-sm font-black"
+                                    >
+                                      -
+                                    </button>
+                                    <span className="flex-1 text-center text-sm font-bold text-text-primary">
+                                      {quantityInCart}
+                                    </span>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        handleWishlistUpdateQuantity(product._id, quantityInCart + 1);
+                                      }}
+                                      className="w-8 h-full flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-card-bg rounded-lg transition-colors text-sm font-black"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button 
+                                    onClick={() => handleWishlistAddToCart(product)}
+                                    className="w-full h-10 bg-accent/10 hover:bg-accent text-accent hover:text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <Package className="w-3.5 h-3.5" /> Move to Cart
+                                  </button>
+                                );
+                              })()}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               )}
 
               {activeTab === 'addresses' && (
                 <motion.div key="addresses" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {addresses.map((addr) => (
-                      <div key={addr.id} className="bg-card-bg p-8 rounded-[32px] border border-border-main relative group">
-                        <div className="flex justify-between items-start mb-4">
-                          <span className="px-3 py-1 bg-app-bg text-[10px] font-black uppercase tracking-widest rounded-sm border border-border-subtle">{addr.type}</span>
-                          <button onClick={() => removeAddress(addr.id)} className="p-2 text-text-muted hover:text-status-danger transition-colors">
-                            <Trash2 className="h-4 w-4" />
+                  <div className="card rounded-[32px] p-6 md:p-10">
+                    <div className="flex items-center justify-between mb-8 pb-6 border-b border-border-subtle">
+                      <h3 className="text-2xl font-black text-text-primary tracking-tight flex items-center gap-3">
+                        <MapPin className="h-6 w-6 text-accent" /> Saved Addresses
+                      </h3>
+                      <button 
+                        onClick={() => setShowAddAddress(true)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-accent/10 text-accent text-[11px] font-black uppercase tracking-widest rounded-lg hover:bg-accent hover:text-white transition-all"
+                      >
+                        <Plus className="w-4 h-4" /> Add New
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {addresses.map((addr) => {
+                        // Attempt to parse the address string for cleaner display
+                        const lines = addr.address.split('\n').filter(Boolean);
+                        const name = lines.length > 0 ? lines[0] : '';
+                        const phoneLine = lines.find(l => l.includes('Phone:')) || '';
+                        const addressLines = lines.filter((l, i) => i !== 0 && !l.includes('Phone:')).join(', ');
+
+                        return (
+                          <div key={addr.id} className="group flex flex-col bg-app-bg border border-border-subtle rounded-2xl p-6 transition-all duration-300 hover:border-accent hover:shadow-lg relative overflow-hidden">
+                            {/* Header row */}
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-text-secondary group-hover:text-accent group-hover:bg-accent/10 transition-colors">
+                                  {addr.type.toLowerCase() === 'home' ? <MapPin className="w-5 h-5" /> : addr.type.toLowerCase() === 'work' ? <Package className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="text-base font-black text-text-primary capitalize">{name || 'Saved Address'}</h4>
+                                    <span className="px-2 py-0.5 bg-surface-dark text-text-muted text-[9px] font-black uppercase tracking-widest rounded">
+                                      {addr.type}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs font-bold text-text-muted mt-0.5">{phoneLine.replace('Phone:', '').trim() || 'No phone'}</p>
+                                </div>
+                              </div>
+                              <button onClick={() => removeAddress(addr.id)} className="p-2 text-text-muted hover:text-status-danger hover:bg-status-danger/10 rounded-full transition-all">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                            
+                            {/* Address Body */}
+                            <div className="bg-surface/50 p-4 rounded-xl flex-1 border border-border-subtle/50">
+                              <p className="text-sm font-medium text-text-secondary leading-relaxed">
+                                {addressLines || addr.address}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Empty State / Add Box */}
+                      {addresses.length === 0 && (
+                        <div className="col-span-full py-16 flex flex-col items-center justify-center text-center bg-surface/30 rounded-2xl border-2 border-dashed border-border-subtle">
+                          <MapPin className="w-12 h-12 text-text-muted opacity-30 mb-4" />
+                          <p className="text-text-primary font-bold mb-2">No addresses saved yet</p>
+                          <p className="text-text-muted text-xs mb-6">Add your home or work address for quicker checkout.</p>
+                          <button 
+                            onClick={() => setShowAddAddress(true)}
+                            className="px-6 py-3 bg-text-primary text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-text-secondary transition-all"
+                          >
+                            Add Address
                           </button>
                         </div>
-                        <p className="text-sm font-medium text-text-secondary leading-relaxed whitespace-pre-wrap">{addr.address}</p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'giftcards' && (
+                <motion.div key="giftcards" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-3xl font-black text-text-primary tracking-tight flex items-center gap-3">
+                      Gift Cards <span className="text-text-muted text-lg font-bold">Wallet</span>
+                    </h3>
+                  </div>
+
+                  {/* Top Section: Balance & Redeem */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Wallet Balance Card - Theme Based */}
+                    <div className="lg:col-span-1 bg-surface-dark rounded-[32px] p-8 border border-border-main shadow-lg relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
+                      <div className="absolute top-0 right-0 w-40 h-40 bg-accent/20 blur-[60px] rounded-full pointer-events-none group-hover:bg-accent/30 transition-colors duration-700" />
+                      
+                      <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex justify-between items-start mb-10">
+                          <Gift className="w-8 h-8 text-accent" />
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent bg-accent/10 px-3 py-1 rounded-full border border-accent/20">Active</span>
+                            <button onClick={handleRefreshWallet} className="p-1.5 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white" title="Refresh Balance">
+                              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingWallet ? 'animate-spin' : ''}`} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-auto">
+                          <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-1">Available Balance</p>
+                          <h4 className="text-4xl font-black text-white tracking-tighter">{formatPrice(user.wallet_balance || 0)}</h4>
+                          <p className="text-[10px] text-white/50 mt-3 font-medium">Use this balance at checkout</p>
+                        </div>
                       </div>
-                    ))}
-                    <button 
-                      onClick={() => setShowAddAddress(true)}
-                      className="border-2 border-dashed border-border-main rounded-[32px] p-8 flex flex-col items-center justify-center gap-3 text-text-muted hover:border-accent hover:text-accent transition-all bg-card-bg/50"
-                    >
-                      <Plus className="h-8 w-8" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Add New Address</span>
-                    </button>
+                    </div>
+
+                    {/* Redeem Section */}
+                    <div className="lg:col-span-2 bg-card-bg rounded-[32px] p-8 border border-border-main flex flex-col justify-center shadow-sm">
+                      <div className="mb-6 flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
+                          <Ticket className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="text-xl font-black text-text-primary">Redeem a Gift Card</h4>
+                          <p className="text-sm font-medium text-text-muted mt-1">Got a gift card? Enter the code below to add it to your balance.</p>
+                        </div>
+                      </div>
+                      
+                      <form onSubmit={handleRedeemGiftCard} className="flex flex-col sm:flex-row gap-4 mt-2">
+                        <input 
+                          type="text" 
+                          placeholder="Enter 16-digit alphanumeric code" 
+                          value={giftCardCode}
+                          onChange={(e) => setGiftCardCode(e.target.value.toUpperCase())}
+                          className="flex-grow px-5 py-4 bg-app-bg border border-border-subtle rounded-xl text-sm font-bold outline-none focus:border-accent focus:ring-1 focus:ring-accent text-text-primary uppercase placeholder:normal-case transition-all"
+                          required
+                          maxLength="16"
+                        />
+                        <button disabled={isRedeemingGC} type="submit" className="px-8 py-4 bg-text-primary hover:bg-text-secondary text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-black/10 flex-shrink-0 disabled:opacity-50 flex items-center gap-2">
+                          {isRedeemingGC ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                          Redeem Now
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
+                  {/* Bottom Section: Purchase / Send Gift Card */}
+                  <div className="bg-card-bg rounded-[32px] p-6 md:p-10 border border-border-main relative overflow-hidden shadow-sm">
+                    <div className="absolute -top-40 -right-40 w-96 h-96 bg-accent/5 blur-[100px] rounded-full pointer-events-none" />
+                    
+                    <div className="relative z-10">
+                      <h4 className="text-2xl font-black text-text-primary mb-2">Send a Gift Card</h4>
+                      <p className="text-sm font-medium text-text-muted mb-8 max-w-xl">The perfect gift for the tech enthusiast. Instantly email a digital gift card that they can use to buy any IoT component.</p>
+                      
+                      <form onSubmit={handlePurchaseGiftCard} className="space-y-8">
+                        {/* Amounts */}
+                        <div>
+                          <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] block mb-4 ml-1">Select Amount</label>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {giftCardTiers.map((tier) => (
+                              <label key={tier.pay} className="cursor-pointer group relative">
+                                <input type="radio" name="gift_amount" value={tier.pay} onChange={() => setGiftForm({...giftForm, amount: tier.pay})} checked={Number(giftForm.amount) === tier.pay} className="peer hidden" />
+                                <div className="py-4 text-center border-2 border-border-subtle rounded-2xl peer-checked:border-accent peer-checked:bg-accent/5 transition-all group-hover:border-accent/50 relative">
+                                  {tier.label && (
+                                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-status-success text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm">
+                                      {tier.label}
+                                    </span>
+                                  )}
+                                  <div className="text-text-primary font-black text-lg">₹ {tier.pay}</div>
+                                  {tier.get > tier.pay && (
+                                    <div className="text-[10px] font-bold text-accent mt-0.5">Get ₹ {tier.get}</div>
+                                  )}
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Recipient Details */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] block mb-2 ml-1">Recipient's Email</label>
+                            <input 
+                              type="email" 
+                              required 
+                              value={giftForm.recipient_email}
+                              onChange={(e) => setGiftForm({...giftForm, recipient_email: e.target.value})}
+                              placeholder="friend@example.com" 
+                              className="w-full px-5 py-4 bg-app-bg border border-border-subtle rounded-xl text-sm font-medium outline-none focus:border-accent focus:ring-1 focus:ring-accent text-text-primary transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] block mb-2 ml-1">Recipient's Name</label>
+                            <input 
+                              type="text" 
+                              required 
+                              value={giftForm.recipient_name}
+                              onChange={(e) => setGiftForm({...giftForm, recipient_name: e.target.value})}
+                              placeholder="John Doe" 
+                              className="w-full px-5 py-4 bg-app-bg border border-border-subtle rounded-xl text-sm font-medium outline-none focus:border-accent focus:ring-1 focus:ring-accent text-text-primary transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Message */}
+                        <div>
+                          <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] block mb-2 ml-1">Personal Message (Optional)</label>
+                          <textarea 
+                            rows="3"
+                            value={giftForm.message}
+                            onChange={(e) => setGiftForm({...giftForm, message: e.target.value})}
+                            placeholder="Happy Birthday! Buy yourself some cool IoT sensors!" 
+                            className="w-full px-5 py-4 bg-app-bg border border-border-subtle rounded-xl text-sm font-medium outline-none focus:border-accent focus:ring-1 focus:ring-accent text-text-primary transition-all resize-none"
+                          ></textarea>
+                        </div>
+
+                        <div className="pt-2">
+                          <button disabled={isPurchasingGC} type="submit" className="w-full md:w-auto px-10 py-4 bg-accent hover:bg-accent-hover text-white text-[12px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-accent/20 flex items-center justify-center gap-3 disabled:opacity-50">
+                            {isPurchasingGC ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />} 
+                            Buy Gift Card
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -900,70 +1415,126 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
 
               {activeTab === 'settings' && (
                 <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
-                  <div className="card rounded-[32px] p-10">
-                    <h3 className="heading-section flex items-center gap-3 mb-8">
+                  <div className="bg-card-bg border border-border-main rounded-[32px] p-6 md:p-10 shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent/5 blur-[120px] rounded-full pointer-events-none" />
+                    <h3 className="text-xl md:text-2xl font-black text-text-primary tracking-tight flex items-center gap-3 mb-8 relative z-10">
                       <User className="h-6 w-6 text-accent" /> Personal Information
                     </h3>
-                    <form className="space-y-6 max-w-2xl">
+                    <form className="space-y-6 max-w-2xl relative z-10">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="label-caps block mb-2">First Name</label>
+                        <div className="relative group mt-2">
+                          <label className="absolute -top-2.5 left-4 px-2 bg-card-bg text-[10px] font-black uppercase tracking-widest text-text-secondary z-10">First Name</label>
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-text-muted group-focus-within:text-accent transition-colors z-10">
+                            <User className="w-5 h-5" />
+                          </div>
                           <input 
                             type="text" 
                             value={profileData.first_name} 
                             onChange={(e) => setProfileData({...profileData, first_name: e.target.value})}
-                            className="field-input" 
+                            placeholder="e.g. John"
+                            className="w-full relative z-0 bg-card-bg/50 border-2 border-border-subtle focus:border-accent text-text-primary font-bold rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all placeholder:text-text-muted/50 hover:bg-card-bg" 
                           />
                         </div>
-                        <div>
-                          <label className="label-caps block mb-2">Last Name</label>
+                        <div className="relative group mt-2">
+                          <label className="absolute -top-2.5 left-4 px-2 bg-card-bg text-[10px] font-black uppercase tracking-widest text-text-secondary z-10">Last Name</label>
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-text-muted group-focus-within:text-accent transition-colors z-10">
+                            <User className="w-5 h-5 opacity-70" />
+                          </div>
                           <input 
                             type="text" 
                             value={profileData.last_name} 
                             onChange={(e) => setProfileData({...profileData, last_name: e.target.value})}
-                            className="field-input" 
+                            placeholder="e.g. Doe"
+                            className="w-full relative z-0 bg-card-bg/50 border-2 border-border-subtle focus:border-accent text-text-primary font-bold rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all placeholder:text-text-muted/50 hover:bg-card-bg" 
                           />
                         </div>
-                        <div>
-                          <label className="label-caps block mb-2">Phone Number</label>
+                        <div className="relative group mt-2">
+                          <label className="absolute -top-2.5 left-4 px-2 bg-card-bg text-[10px] font-black uppercase tracking-widest text-text-secondary z-10">Phone Number</label>
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-text-muted group-focus-within:text-accent transition-colors z-10">
+                            <Phone className="w-5 h-5" />
+                          </div>
                           <input 
                             type="tel" 
                             value={profileData.phone} 
                             onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
-                            className="field-input" 
+                            placeholder="+91 98765 43210"
+                            className="w-full relative z-0 bg-card-bg/50 border-2 border-border-subtle focus:border-accent text-text-primary font-bold rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all placeholder:text-text-muted/50 hover:bg-card-bg" 
                           />
                         </div>
-                        <div>
-                          <label className="label-caps block mb-2">Email Address</label>
-                          <input type="email" defaultValue={user?.email} disabled className="field-input-dark" />
+                        <div className="relative group mt-2">
+                          <label className="absolute -top-2.5 left-4 px-2 bg-card-bg text-[10px] font-black uppercase tracking-widest text-text-secondary z-10">Email Address (Read-Only)</label>
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-text-muted z-10">
+                            <Mail className="w-5 h-5 opacity-70" />
+                          </div>
+                          <input 
+                            type="email" 
+                            defaultValue={user?.email} 
+                            disabled 
+                            className="w-full relative z-0 bg-card-bg/30 border-2 border-border-subtle/50 text-text-secondary font-bold rounded-2xl pl-12 pr-4 py-4 cursor-not-allowed" 
+                          />
                         </div>
                       </div>
-                      <div className="pt-4 border-b border-border-main pb-8">
+                      <div className="pt-6 border-b border-border-subtle pb-10">
                         <button 
                           type="button" 
                           onClick={handleProfileSave}
                           disabled={isSavingProfile}
-                          className="btn-premium py-4 text-[10px] disabled:opacity-50"
+                          className="w-full md:w-auto px-10 py-4 bg-gradient-to-r from-accent to-accent-hover text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:shadow-[0_0_30px_rgba(2,132,199,0.3)] transition-all hover:-translate-y-1 disabled:opacity-50 flex items-center justify-center gap-3"
                         >
-                          {isSavingProfile ? 'Saving...' : 'Save Information'}
+                          {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                          {isSavingProfile ? 'Saving Details...' : 'Save Profile Details'}
                         </button>
                       </div>
 
                       <div className="pt-4">
-                        <h4 className="heading-section mb-6">PAN Card Information</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                          <div>
-                            <label className="label-caps block mb-2">PAN Card Number</label>
-                            <input type="text" placeholder="ABCDE1234F" className="field-input uppercase" />
+                        <h4 className="text-xl font-black text-text-primary tracking-tight mb-6 flex items-center gap-2">
+                          <Bell className="w-5 h-5 text-accent" /> Notification Preferences
+                        </h4>
+                        <div className="space-y-4 mb-8">
+                          {/* Email Notifications Toggle */}
+                          <div className="flex items-center justify-between p-4 rounded-xl border border-border-subtle bg-surface hover:border-border-main transition-colors">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+                                <Mail className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h5 className="font-bold text-text-primary text-sm">Email Notifications</h5>
+                                <p className="text-xs text-text-muted mt-0.5">Receive order updates and promotions via email</p>
+                              </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                className="sr-only peer" 
+                                checked={profileData.email_notifications !== false} 
+                                onChange={(e) => setProfileData({...profileData, email_notifications: e.target.checked})}
+                              />
+                              <div className="w-11 h-6 bg-surface-dark peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                            </label>
                           </div>
-                          <div>
-                            <label className="label-caps block mb-2">Full Name on PAN</label>
-                            <input type="text" placeholder="Enter name as on PAN" className="field-input" />
+                          
+                          {/* SMS Notifications Toggle */}
+                          <div className="flex items-center justify-between p-4 rounded-xl border border-border-subtle bg-surface hover:border-border-main transition-colors">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-full bg-status-success/10 flex items-center justify-center text-status-success">
+                                <Phone className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h5 className="font-bold text-text-primary text-sm">SMS Alerts</h5>
+                                <p className="text-xs text-text-muted mt-0.5">Get delivery updates directly on your phone</p>
+                              </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                className="sr-only peer" 
+                                checked={profileData.sms_notifications !== false} 
+                                onChange={(e) => setProfileData({...profileData, sms_notifications: e.target.checked})}
+                              />
+                              <div className="w-11 h-6 bg-surface-dark peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-status-success/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-status-success"></div>
+                            </label>
                           </div>
                         </div>
-                        <button type="button" className="btn-outline py-4 text-[10px]">
-                          Upload & Verify PAN
-                        </button>
                       </div>
                     </form>
                   </div>
@@ -1283,28 +1854,68 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
               </AnimatePresence>
 
               {activeTab === 'coupons' && (
-                <motion.div key="coupons" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
-                  <div className="card rounded-[32px] p-10">
+                <motion.div key="coupons" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                  <div className="card rounded-[32px] p-6 md:p-10">
                     <h3 className="heading-section flex items-center gap-3 mb-8">
                       <Ticket className="h-6 w-6 text-accent" /> My Coupons
                     </h3>
-                    <div className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-border-main rounded-2xl text-text-muted bg-surface/50 max-w-2xl">
-                      <Ticket className="h-12 w-12 mb-4 opacity-20" />
-                      <p className="font-bold text-text-primary mb-1">No coupons available</p>
-                      <p className="text-xs text-center max-w-sm mb-6">You don't have any active coupons or discount codes at the moment. Keep shopping to earn rewards!</p>
-                      <button 
-                        type="button"
-                        onClick={() => toast('Coupon redemption is coming soon!', { icon: '🎟️' })}
-                        className="btn-outline py-3 px-6 text-[10px]"
-                      >
-                        Redeem a Code
-                      </button>
+                    
+                    <h4 className="text-sm font-black text-text-primary uppercase tracking-widest mb-6">Available For You</h4>
+                    
+                    {/* Coupon Cards Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {availableCoupons.length > 0 ? availableCoupons.map((coupon, idx) => (
+                        <div key={coupon._id} className="relative overflow-hidden bg-card-bg border border-border-main rounded-2xl group hover:border-accent transition-all duration-300 hover:shadow-[0_10px_30px_rgba(2,132,199,0.1)] flex">
+                          {/* Left Side (Color bar) */}
+                          <div className={`w-16 bg-gradient-to-b ${idx % 2 === 0 ? 'from-accent to-accent-hover' : 'from-status-success to-emerald-600'} flex items-center justify-center border-r border-dashed border-white/30 relative`}>
+                             {/* Dotted cutouts */}
+                             <div className="absolute -top-2 -right-2 w-4 h-4 bg-app-bg rounded-full border-b border-l border-border-main group-hover:border-accent transition-colors"></div>
+                             <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-app-bg rounded-full border-t border-l border-border-main group-hover:border-accent transition-colors"></div>
+                             
+                             <div className="rotate-[-90deg] whitespace-nowrap text-white font-black text-[10px] uppercase tracking-[0.3em]">{coupon.code.substring(0, 10)}</div>
+                          </div>
+                          {/* Right Side (Content) */}
+                          <div className="flex-1 p-5 flex flex-col justify-between">
+                            <div>
+                              <span className="inline-block px-2 py-0.5 bg-status-success/10 text-status-success text-[9px] font-black uppercase tracking-widest rounded mb-2">Active</span>
+                              <h5 className="font-black text-text-primary text-lg mb-1">{coupon.discount_percentage}% Off</h5>
+                              <p className="text-xs text-text-muted font-medium leading-relaxed mb-4">
+                                {coupon.description || `Get ${coupon.discount_percentage}% off on your purchase.`}
+                                {coupon.min_order_value > 0 && ` Min order: ₹${coupon.min_order_value}.`}
+                                {coupon.max_discount_amount > 0 && ` Max discount: ₹${coupon.max_discount_amount}.`}
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-between mt-auto">
+                              <div className={`border border-dashed px-4 py-2 rounded font-mono font-bold text-sm tracking-widest ${idx % 2 === 0 ? 'border-accent/50 bg-accent/5 text-accent' : 'border-status-success/50 bg-status-success/5 text-status-success'}`}>
+                                {coupon.code}
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  navigator.clipboard.writeText(coupon.code);
+                                  toast.success('Coupon code copied!');
+                                }}
+                                className={`text-[10px] font-black uppercase tracking-widest text-text-muted transition-colors ${idx % 2 === 0 ? 'hover:text-accent' : 'hover:text-status-success'}`}
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="col-span-full py-12 flex flex-col items-center justify-center text-center bg-surface/30 rounded-2xl border border-dashed border-border-main">
+                          <Ticket className="w-12 h-12 text-text-muted opacity-30 mb-4" />
+                          <p className="text-text-primary font-bold mb-2">No coupons available right now.</p>
+                          <p className="text-text-muted text-xs">Check back later for exciting offers and discounts!</p>
+                        </div>
+                      )}
+
                     </div>
                   </div>
                 </motion.div>
               )}
 
-              {activeTab === 'giftcards' && (
+              {/* activeTab === 'giftcards' && (
                 <motion.div key="giftcards" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
                   <div className="card rounded-[32px] p-10 flex flex-col items-center justify-center text-center py-20">
                     <div className="w-24 h-24 bg-accent-light rounded-full flex items-center justify-center text-accent mb-6">
@@ -1321,7 +1932,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                     </button>
                   </div>
                 </motion.div>
-              )}
+              ) */}
             </AnimatePresence>
           </main>
         </div>
@@ -1409,6 +2020,129 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Transaction Details Modal */}
+      {createPortal(
+        <AnimatePresence>
+          {expandedTxnId && transactions.find(t => t._id === expandedTxnId) && (() => {
+            const txn = transactions.find(t => t._id === expandedTxnId);
+            return (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md"
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                  className="bg-app-bg max-w-sm w-full rounded-[28px] border border-border-main shadow-2xl overflow-hidden"
+                >
+                  {/* Modal Header */}
+                  <div className="p-5 flex justify-between items-center border-b border-border-subtle bg-card-bg">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner ${
+                        txn.status === 'Success' || txn.status === 'Paid' 
+                          ? 'bg-status-success/20 text-status-success border-status-success/30' 
+                          : txn.status === 'Failed' 
+                          ? 'bg-status-danger/20 text-status-danger border-status-danger/30' 
+                          : 'bg-status-warning/20 text-status-warning border-status-warning/30'
+                      }`}>
+                        {txn.status === 'Success' || txn.status === 'Paid' ? <CheckCircle2 className="h-5 w-5" /> : txn.status === 'Failed' ? <X className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-text-primary uppercase tracking-tight">Receipt</h3>
+                        <p className="text-[10px] font-bold text-text-muted mt-0.5 uppercase tracking-widest">Txn: #{txn._id.slice(-10)}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setExpandedTxnId(null)} className="w-8 h-8 rounded-full bg-surface hover:bg-surface-hover flex items-center justify-center text-text-muted transition-colors shrink-0 ml-2">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="p-5 space-y-5">
+                    <div className="flex justify-between items-end border-b border-border-subtle border-dashed pb-5">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1.5">Total Amount</p>
+                        <p className="text-2xl font-black text-text-primary tracking-tighter">{formatPrice(txn.amount)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1.5">Date & Time</p>
+                        <p className="text-xs font-bold text-text-primary">{new Date(txn.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Payment Method</p>
+                        <div className="flex items-center gap-1.5">
+                          <CreditCard className="w-3.5 h-3.5 text-accent" />
+                          <p className="text-xs font-bold text-text-primary">{txn.payment_method}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Status</p>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border inline-block ${
+                          txn.status === 'Success' || txn.status === 'Paid' 
+                            ? 'bg-status-success/15 text-status-success border-status-success/30' 
+                            : txn.status === 'Failed' 
+                            ? 'bg-status-danger/15 text-status-danger border-status-danger/30' 
+                            : 'bg-status-warning/15 text-status-warning border-status-warning/30'
+                        }`}>
+                          {txn.status}
+                        </span>
+                      </div>
+
+                      {/* Additional Details from Associated Order */}
+                      {(() => {
+                        const relatedOrder = orders.find(o => o._id === txn.order_id);
+                        if (!relatedOrder) return null;
+                        
+                        const totalItems = relatedOrder.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
+                        
+                        return (
+                          <div className="col-span-2 pt-4 border-t border-border-subtle border-dashed">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-text-muted mb-2">Order Info</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-[9px] font-bold text-text-muted uppercase mb-0.5">Total Items</p>
+                                <p className="text-xs font-bold text-text-primary">{totalItems} {totalItems === 1 ? 'Product' : 'Products'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-bold text-text-muted uppercase mb-0.5">Delivery</p>
+                                <p className="text-xs font-bold text-text-primary">{relatedOrder.status}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="col-span-2 pt-2">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-text-muted mb-1">Full Transaction ID</p>
+                        <p className="text-[11px] font-medium text-text-secondary font-mono bg-surface px-2.5 py-2 rounded border border-border-subtle break-all">{txn._id}</p>
+                      </div>
+                      
+                      <div className="col-span-2">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-text-muted mb-1">Gateway Reference</p>
+                        <p className="text-[11px] font-medium text-text-secondary font-mono bg-surface px-2.5 py-2 rounded border border-border-subtle break-all">{txn.payment_id || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border-t border-border-subtle bg-surface/50 text-center">
+                    <button onClick={() => setExpandedTxnId(null)} className="w-full py-3.5 bg-text-primary text-white text-[11px] font-black rounded-xl uppercase tracking-widest hover:bg-text-secondary transition-all">
+                      Close Details
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 };

@@ -12,12 +12,13 @@ def serialize_user(user: dict) -> dict:
         "email": user.get("email", ""),
         "role": user.get("role", "user"),
         "status": user.get("status", "active"),
-        "profile_picture": user.get("profile_picture", ""),
+        "avatar": user.get("avatar", user.get("profile_picture", "")),
         "wishlist": user.get("wishlist", []),
         "addresses": user.get("addresses", []),
         "email_verified": user.get("email_verified", False),
         "phone_verified": user.get("phone_verified", user.get("mobile_verified", False)),
         "is_2fa_enabled": user.get("is_2fa_enabled", False),
         "two_factor_type": user.get("two_factor_type", None),
-        "has_custom_password": user.get("has_custom_password", True)
+        "has_custom_password": user.get("has_custom_password", True),
+        "wallet_balance": float(user.get("wallet_balance", 0.0))
     }

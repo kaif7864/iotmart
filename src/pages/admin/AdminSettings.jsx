@@ -5,7 +5,8 @@ import { Save, Truck, DollarSign, Power, Loader2, ShieldCheck, ShieldOff, KeyRou
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import TwoFactorSettingsModal from '../../components/profile/TwoFactorSettingsModal';
-import { sendVerification, verifyMobile, verifyEmailOtp } from '../../services/api';
+import { sendVerification, verifyMobile, verifyEmailOtp, getGiftcardSettings, updateGiftcardSettings } from '../../services/api';
+import { Gift, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const AdminSettings = () => {
@@ -37,6 +38,38 @@ const AdminSettings = () => {
     };
     fetchSettings();
   }, []);
+
+  // Gift Card Settings State
+  const [giftcardTiers, setGiftcardTiers] = useState([]);
+  const [initialGiftcardTiers, setInitialGiftcardTiers] = useState([]);
+  const [isGCEditing, setIsGCEditing] = useState(false);
+
+  useEffect(() => {
+    const fetchGC = async () => {
+      try {
+        const res = await getGiftcardSettings();
+        setGiftcardTiers(res.data.tiers || []);
+        setInitialGiftcardTiers(res.data.tiers || []);
+      } catch (err) {
+        console.error("Failed to load giftcard settings", err);
+      }
+    }
+    fetchGC();
+  }, []);
+
+  const handleSaveGC = async () => {
+    setSaving(true);
+    try {
+      await updateGiftcardSettings({ tiers: giftcardTiers });
+      setInitialGiftcardTiers(giftcardTiers);
+      setIsGCEditing(false);
+      toast.success('Gift card settings saved!');
+    } catch (err) {
+      toast.error('Failed to update giftcard settings');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (JSON.stringify(settings) === JSON.stringify(initialSettings)) {
@@ -269,11 +302,11 @@ const AdminSettings = () => {
         </div>
         
         {/* Tab Navigation */}
-        <div className="flex bg-app-bg border border-border-main p-1 rounded-xl shadow-inner w-full sm:w-auto">
-          <div className="flex w-full">
+        <div className="bg-app-bg border border-border-main p-1 rounded-xl shadow-inner w-full sm:w-auto">
+          <div className="grid grid-cols-3 w-full">
             <button
               onClick={() => setActiveTab('config')}
-              className={`flex-1 sm:flex-none px-2 sm:px-6 py-2.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap ${
+              className={`px-2 py-2.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap text-center ${
                 activeTab === 'config' ? 'bg-accent text-white shadow-lg shadow-accent/30' : 'text-text-muted hover:text-text-primary'
               }`}
             >
@@ -281,11 +314,19 @@ const AdminSettings = () => {
             </button>
             <button
               onClick={() => setActiveTab('profile')}
-              className={`flex-1 sm:flex-none px-2 sm:px-6 py-2.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap ${
+              className={`px-2 py-2.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap text-center ${
                 activeTab === 'profile' ? 'bg-accent text-white shadow-lg shadow-accent/30' : 'text-text-muted hover:text-text-primary'
               }`}
             >
               Admin Profile
+            </button>
+            <button
+              onClick={() => setActiveTab('giftcards')}
+              className={`px-2 py-2.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap text-center ${
+                activeTab === 'giftcards' ? 'bg-accent text-white shadow-lg shadow-accent/30' : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              Gift Cards
             </button>
           </div>
         </div>
@@ -691,6 +732,136 @@ const AdminSettings = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {activeTab === 'giftcards' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+          <div className="flex justify-end gap-3">
+            {!isGCEditing ? (
+              <button onClick={() => setIsGCEditing(true)} 
+                className="px-6 py-3 bg-app-bg border border-border-main text-text-primary font-black text-xs uppercase tracking-widest rounded-xl hover:border-accent hover:text-accent transition-all flex items-center gap-2">
+                <Edit2 className="h-4 w-4" /> Edit Configuration
+              </button>
+            ) : (
+              <>
+                <button onClick={() => { setGiftcardTiers(initialGiftcardTiers); setIsGCEditing(false); }} 
+                  className="px-6 py-3 bg-app-bg border border-border-main text-text-muted font-black text-xs uppercase tracking-widest rounded-xl hover:bg-surface transition-all flex items-center gap-2">
+                  <XCircle className="h-4 w-4" /> Cancel
+                </button>
+                <button onClick={handleSaveGC} disabled={saving}
+                  className="px-6 py-3 bg-[#10b981] hover:bg-[#059669] text-white shadow-lg shadow-[#10b981]/20 font-black text-xs uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 disabled:opacity-50">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Changes
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="bg-card-bg border border-border-main rounded-[32px] overflow-hidden shadow-sm p-6 sm:p-10">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 pb-6 border-b border-border-subtle gap-4">
+              <h2 className="text-xl font-black text-text-primary flex items-center gap-3">
+                <Gift className="h-6 w-6 text-accent" /> Gift Card Bonus Offers
+              </h2>
+              {isGCEditing && (
+                <button 
+                  onClick={() => setGiftcardTiers([...giftcardTiers, { pay: 100, get: 100, label: "" }])}
+                  className="px-4 py-2 bg-accent/10 text-accent hover:bg-accent hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 w-full sm:w-auto justify-center"
+                >
+                  <Plus className="w-4 h-4" /> Add Offer Tier
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-6">
+              {giftcardTiers.map((tier, idx) => (
+                <div key={idx} className="flex flex-col md:grid md:grid-cols-12 gap-4 p-5 md:p-4 border border-border-subtle rounded-2xl md:items-end relative bg-app-bg group transition-all hover:border-border-main">
+                  
+                  {isGCEditing && (
+                    <div className="absolute top-3 right-3 md:hidden">
+                      <button 
+                        onClick={() => {
+                          const newTiers = [...giftcardTiers];
+                          newTiers.splice(idx, 1);
+                          setGiftcardTiers(newTiers);
+                        }}
+                        className="p-2 bg-status-danger/10 text-status-danger rounded-lg flex-shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4 md:col-span-5 md:flex md:gap-4 w-full">
+                    <div className="w-full">
+                      <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">User Pays (₹)</label>
+                      <input 
+                        type="number" 
+                        value={tier.pay} 
+                        disabled={!isGCEditing}
+                        onChange={(e) => {
+                          const newTiers = [...giftcardTiers];
+                          newTiers[idx].pay = Number(e.target.value);
+                          setGiftcardTiers(newTiers);
+                        }} 
+                        className={inputCls} 
+                      />
+                    </div>
+                    <div className="w-full">
+                      <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">User Gets (₹)</label>
+                      <input 
+                        type="number" 
+                        value={tier.get} 
+                        disabled={!isGCEditing}
+                        onChange={(e) => {
+                          const newTiers = [...giftcardTiers];
+                          newTiers[idx].get = Number(e.target.value);
+                          setGiftcardTiers(newTiers);
+                        }} 
+                        className={inputCls} 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-7 flex gap-4 w-full items-end mt-2 md:mt-0">
+                    <div className="flex-1 w-full">
+                      <label className="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Marketing Label</label>
+                      <input 
+                        type="text" 
+                        value={tier.label} 
+                        placeholder="e.g. 10% Extra"
+                        disabled={!isGCEditing}
+                        onChange={(e) => {
+                          const newTiers = [...giftcardTiers];
+                          newTiers[idx].label = e.target.value;
+                          setGiftcardTiers(newTiers);
+                        }} 
+                        className={inputCls} 
+                      />
+                    </div>
+                    {isGCEditing && (
+                      <button 
+                        onClick={() => {
+                          const newTiers = [...giftcardTiers];
+                          newTiers.splice(idx, 1);
+                          setGiftcardTiers(newTiers);
+                        }}
+                        className="hidden md:flex h-[50px] w-[50px] items-center justify-center bg-status-danger/10 text-status-danger hover:bg-status-danger hover:text-white rounded-xl transition-all flex-shrink-0 mb-0.5"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              
+              {giftcardTiers.length === 0 && (
+                <div className="text-center py-10 text-text-muted">
+                  <Gift className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>No gift card tiers configured.</p>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

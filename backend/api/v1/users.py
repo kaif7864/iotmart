@@ -45,6 +45,9 @@ async def update_user_profile(id: str, profile: dict = Body(...)):
         "phone": profile.get("phone", "")
     }
     
+    if "avatar" in profile:
+        update_data["avatar"] = profile.get("avatar")
+    
     if "email_notifications" in profile:
         update_data["email_notifications"] = profile.get("email_notifications")
     if "sms_notifications" in profile:

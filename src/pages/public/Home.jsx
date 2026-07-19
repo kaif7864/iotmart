@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import ProductCard from '../../components/ui/ProductCard';
 import Newsletter from '../../components/feedback/Newsletter';
 import { getProducts, getAiCuratedProducts, postAiChatProducts, getGlobalReviews } from '../../services/api';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useCart } from '../../hooks/useCart';
 import { useAuth } from '../../context/AuthContext';
 import { SkeletonGrid } from '../../components/common';
@@ -38,19 +38,43 @@ const Home = () => {
     }
   }, [chatHistory]);
 
+  // Force top scroll on mount to override browser scroll restoration
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+
   const hasAutoTyped = useRef(false);
+  const chatSectionRef = useRef(null);
+  const isChatInView = useInView(chatSectionRef, { once: true, amount: 0.3 });
 
   useEffect(() => {
-    if (hasAutoTyped.current) return;
+    if (hasAutoTyped.current || !isChatInView) return;
     hasAutoTyped.current = true;
     
     const randomPrompts = [
       "I want to build a smart weather station",
-      "I need parts for a drone",
+      "I need parts for an autonomous drone",
       "I want to build an automated plant watering system",
-      "I want to build a voice-controlled home hub"
+      "I want to build a voice-controlled home hub",
+      "Recommend components for a smart fingerprint door lock",
+      "What do I need for a motion-activated security camera?",
+      "I'm building a self-balancing robot with Arduino",
+      "Components for an RFID attendance system?",
+      "I want to create an industrial temperature monitor",
+      "Suggest parts for a smart hydroponics setup"
     ];
-    const selectedPrompt = randomPrompts[Math.floor(Math.random() * randomPrompts.length)];
+    
+    // Ensure we don't get the same prompt twice in a row on refresh
+    const lastPrompt = sessionStorage.getItem('lastAiPrompt');
+    let availablePrompts = randomPrompts;
+    if (lastPrompt && randomPrompts.length > 1) {
+      availablePrompts = randomPrompts.filter(p => p !== lastPrompt);
+    }
+    const selectedPrompt = availablePrompts[Math.floor(Math.random() * availablePrompts.length)];
+    sessionStorage.setItem('lastAiPrompt', selectedPrompt);
     
     let i = 0;
     // Wait 1 second before starting to type
@@ -66,7 +90,7 @@ const Home = () => {
         }
       }, 50);
     }, 1000);
-  }, []);
+  }, [isChatInView]);
 
   const handleChatSubmit = async (e, forceText = null) => {
     e?.preventDefault();
@@ -255,7 +279,7 @@ const Home = () => {
                     <img 
                       src={heroSlides[heroIndex].image} 
                       alt="Hardware showcase" 
-                      className="w-full h-full object-cover lg:object-cover mix-blend-screen opacity-90"
+                      className="w-full h-full object-cover"
                     />
                   </motion.div>
                 </AnimatePresence>
@@ -458,7 +482,7 @@ const Home = () => {
       </section>
 
       {/* AI Recommendation Engine: Theme Integrated */}
-      <section className="py-32 bg-card-bg relative border-t border-b border-border-main">
+      <section ref={chatSectionRef} className="py-32 bg-card-bg relative border-t border-b border-border-main">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-5xl md:text-6xl font-black text-text-primary tracking-tighter mb-6">Designed by <span className="text-accent">Intelligence.</span></h2>

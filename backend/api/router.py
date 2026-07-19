@@ -23,6 +23,8 @@ api_router = APIRouter()
 from api.deps import get_current_user
 from fastapi import Depends
 
+from api.v1.giftcards import router as giftcards_router
+
 api_router.include_router(product_router, prefix="/products", tags=["Products"])
 api_router.include_router(order_router, prefix="/orders", tags=["Orders"], dependencies=[Depends(get_current_user)])
 api_router.include_router(user_router, prefix="/users", tags=["Users"], dependencies=[Depends(get_current_user)])
@@ -40,3 +42,4 @@ api_router.include_router(support_router, prefix="/support", tags=["Support"])
 api_router.include_router(settings_router, prefix="/settings", tags=["Settings"])
 api_router.include_router(logs_router, prefix="/logs", tags=["Logs"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["Notifications"], dependencies=[Depends(get_current_user)])
+api_router.include_router(giftcards_router, prefix="/giftcards", tags=["GiftCards"], dependencies=[Depends(get_current_user)])

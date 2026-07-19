@@ -89,3 +89,8 @@ export const disable2FA = (email) => apiClient.post('/auth/2fa/disable', { email
 export const verify2FALogin = (data) => apiClient.post('/auth/login/verify-2fa', data);
 
 export const uploadProductImage = (formData) => apiClient.post('/products/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const getGiftcardSettings = () => apiClient.get('/giftcards/settings');
+export const updateGiftcardSettings = (data) => apiClient.post('/giftcards/settings', data);
+export const redeemGiftCard = (code) => apiClient.post('/giftcards/redeem', { code });
+export const purchaseGiftCard = (data) => apiClient.post('/giftcards/purchase', data);
+export const createCashfreeSession = (data) => apiClient.post('/payments/cashfree/create-session', data);
