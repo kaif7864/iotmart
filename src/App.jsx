@@ -1,5 +1,6 @@
 import React, { useState, Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { ComparisonProvider } from './context/ComparisonContext';
 import { CartProvider } from './context/CartContext';
@@ -30,7 +31,6 @@ const DeviceDashboard = lazy(() => import('./pages/DeviceDashboard'));
 const About = lazy(() => import('./pages/public/About'));
 const Contact = lazy(() => import('./pages/public/Contact'));
 const Legal = lazy(() => import('./pages/public/Legal'));
-const Compare = lazy(() => import('./pages/shop/Compare'));
 const TrackOrder = lazy(() => import('./pages/shop/TrackOrder'));
 const FAQ = lazy(() => import('./pages/public/FAQ'));
 const Support = lazy(() => import('./pages/support/Support'));
@@ -53,6 +53,16 @@ import ChatSupport from './components/feedback/ChatSupport';
 import Toast from './components/feedback/Toast';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
 const LoadingScreen = () => (
   <div className="fixed inset-0 bg-app-bg z-[999] flex flex-col p-8 lg:p-32">
     <div className="max-w-7xl mx-auto w-full">
@@ -70,6 +80,7 @@ function App() {
           <CartProvider>
           <WishlistProvider>
           <Router>
+          <ScrollToTop />
           <Toaster position="top-center" toastOptions={{ style: { fontWeight: 'bold', fontSize: '12px' } }} containerStyle={{ zIndex: 99999 }} />
           <Suspense fallback={<LoadingScreen />}>
             <Routes>
@@ -80,7 +91,6 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/shop" element={<Shop />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="/compare" element={<Compare />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/privacy" element={<Legal />} />

@@ -22,30 +22,32 @@ export const CartProvider = ({ children }) => {
   }, []);
 
   const handleAddToCart = (product) => {
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item._id === product._id);
+    const existingItem = cartItems.find(item => item._id === product._id);
+    
+    // Check stock limit
+    if (existingItem) {
+      const stockLimit = product.stockQuantity !== undefined ? product.stockQuantity : Infinity;
+      if (existingItem.quantity >= stockLimit) {
+        toast.error(`Only ${stockLimit} units available for ${product.name}`);
+        return; // Don't proceed with state update
+      }
       
-      // Check stock limit for existing items
-      if (existingItem) {
-        const stockLimit = product.stockQuantity !== undefined ? product.stockQuantity : Infinity;
-        if (existingItem.quantity >= stockLimit) {
-          toast.error(`Only ${stockLimit} units available for ${product.name}`);
-          return prevItems;
-        }
-        
-        toast.success(`${product.name} quantity updated`, {
-          style: { fontWeight: 'bold', fontSize: '12px', background: '#333', color: '#fff' }
-        });
-        
+      toast.success(`${product.name} quantity updated`, {
+        style: { fontWeight: 'bold', fontSize: '12px', background: '#333', color: '#fff' }
+      });
+    } else {
+      toast.success(`${product.name} added to cart`, {
+        style: { fontWeight: 'bold', fontSize: '12px', background: '#333', color: '#fff' }
+      });
+    }
+
+    setCartItems(prevItems => {
+      const existing = prevItems.find(item => item._id === product._id);
+      if (existing) {
         return prevItems.map(item => 
           item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      
-      // For new items, they are adding 1, assume 1 is available if inStock is true
-      toast.success(`${product.name} added to cart`, {
-        style: { fontWeight: 'bold', fontSize: '12px', background: '#333', color: '#fff' }
-      });
       return [...prevItems, { ...product, quantity: 1 }];
     });
   };
@@ -57,20 +59,20 @@ export const CartProvider = ({ children }) => {
   const handleUpdateQuantity = (id, newQuantity) => {
     if (newQuantity < 1) return;
     
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item._id === id);
-      if (existingItem) {
-        const stockLimit = existingItem.stockQuantity !== undefined ? existingItem.stockQuantity : Infinity;
-        if (newQuantity > stockLimit) {
-          toast.error(`Only ${stockLimit} units available for ${existingItem.name}`);
-          return prevItems;
-        }
+    const existingItem = cartItems.find(item => item._id === id);
+    if (existingItem) {
+      const stockLimit = existingItem.stockQuantity !== undefined ? existingItem.stockQuantity : Infinity;
+      if (newQuantity > stockLimit) {
+        toast.error(`Only ${stockLimit} units available for ${existingItem.name}`);
+        return;
       }
-      
-      return prevItems.map(item => 
+    }
+    
+    setCartItems(prevItems => 
+      prevItems.map(item => 
         item._id === id ? { ...item, quantity: newQuantity } : item
-      );
-    });
+      )
+    );
   };
 
   const handleClearCart = () => {

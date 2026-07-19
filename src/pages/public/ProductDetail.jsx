@@ -17,12 +17,12 @@ import SEO from '../../components/common/SEO';
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { onAddToCart } = useCart();
+  const { cartItems, onAddToCart, onUpdateQuantity } = useCart();
   const { user, formatPrice } = useAuth();
-  const { addToCompare, comparisonList } = useComparison();
   const [product, setProduct] = useState(null);
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeReviewTab, setActiveReviewTab] = useState('all');
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [userRating, setUserRating] = useState(5);
@@ -31,8 +31,6 @@ const ProductDetail = () => {
   const [showSim, setShowSim] = useState(false);
   const [simValue, setSimValue] = useState(25);
   const [showVideo, setShowVideo] = useState(false);
-
-  const isInCompare = comparisonList.some(p => p._id === id);
 
   useEffect(() => {
     const trackRecentlyViewed = async (productData) => {
@@ -53,6 +51,7 @@ const ProductDetail = () => {
       }
     };
 
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -64,9 +63,15 @@ const ProductDetail = () => {
         setAllProducts(productsData);
         setReviews(productData.reviews || []);
 
+        // Auto-update URL to pretty slug if user landed via an old ID link
+        if (productData && productData.slug && id !== productData.slug) {
+          window.history.replaceState(null, '', `/product/${productData.slug}`);
+        }
+
         await trackRecentlyViewed(productData);
-      } catch (error) {
-        console.error("Error loading product detail:", error);
+      } catch (err) {
+        console.error("Error loading product detail:", err);
+        setError("Failed to fetch product details.");
       } finally {
         setLoading(false);
       }
@@ -132,175 +137,210 @@ const ProductDetail = () => {
     );
   }
 
-  if (!product) {
+  if (error) {
     return (
-      <div className="pt-48 pb-24 min-h-screen text-center">
-        <h2 className="text-2xl font-bold text-text-primary mb-6 uppercase">Product Not Found</h2>
-        <Link to="/shop" className="btn-premium px-8">Back to Shop</Link>
+      <div className="pt-32 pb-32 min-h-screen bg-app-bg flex flex-col items-center justify-center">
+        <h2 className="text-2xl font-black text-status-danger mb-4">Connection Failed</h2>
+        <p className="text-text-secondary">{error}</p>
+        <Link to="/shop" className="mt-8 text-accent hover:underline font-bold text-sm">Return to Shop</Link>
       </div>
     );
   }
 
+  if (!product) {
+    return (
+      <div className="pt-48 pb-24 min-h-screen text-center flex flex-col items-center justify-center bg-app-bg">
+        <h2 className="text-2xl font-bold text-text-primary mb-6 uppercase tracking-widest">Product Not Found</h2>
+        <Link to="/shop" className="bg-accent/10 border border-accent/30 text-accent hover:bg-accent hover:text-white px-8 py-3 rounded-full transition-all font-bold text-sm uppercase">Back to Inventory</Link>
+      </div>
+    );
+  }
+
+  const cartItem = cartItems.find(item => item._id === product?._id);
+
   return (
-    <div className="pt-32 pb-32 min-h-screen bg-app-bg">
+    <div className="pt-24 pb-20 min-h-screen bg-app-bg relative">
       <SEO
         title={`${product.name} | IoTMart`}
-        description={product.description?.substring(0, 150) || `Buy ${product.name} at IoTMart. High-quality IoT components.`}
+        description={product.description?.substring(0, 150) || `Buy ${product.name} at IoTMart`}
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Link to="/shop" className="inline-flex items-center gap-2 text-text-secondary hover:text-accent transition-all mb-8 group text-[10px] font-black uppercase tracking-widest">
-          <ArrowLeft className="h-4 w-4" /> Back to Shop
+
+      {/* Dynamic Video Overlay */}
+      <AnimatePresence>
+        {showVideo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md"
+          >
+            <div className="w-full max-w-4xl bg-card-bg rounded-2xl shadow-2xl border border-border-main overflow-hidden flex flex-col max-h-[95vh]">
+              {/* Header */}
+              <div className="p-4 md:p-6 border-b border-border-main flex items-center justify-between bg-surface-hover/50">
+                <div className="pr-4">
+                  <h2 className="text-lg md:text-xl font-black uppercase tracking-tight text-text-primary line-clamp-1">{product.name}</h2>
+                  <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-accent mt-1">Product Demonstration</p>
+                </div>
+                <button 
+                  onClick={() => setShowVideo(false)} 
+                  className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-surface hover:bg-status-danger hover:text-white border border-border-main rounded-xl text-text-secondary transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              {/* Video Container */}
+              <div className="w-full aspect-video bg-black relative flex-shrink-0">
+                <iframe
+                  className="absolute inset-0 w-full h-full"
+                  src={`https://www.youtube.com/embed/${product.video_id || 'nL34zDTPkcs'}?autoplay=1&mute=1`}
+                  title="Product Video"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <Link to="/shop" className="inline-flex items-center gap-2 text-text-muted hover:text-accent transition-all duration-300 mb-6 group text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full hover:bg-surface-hover">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back to Inventory
         </Link>
 
-        <div className="card rounded-sm overflow-hidden relative">
+        <div className="bg-card-bg/40 backdrop-blur-md rounded-2xl border border-border-main shadow-lg overflow-hidden relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
 
-            {/* Image Section with Video/Sim Overlays */}
-            <div className="bg-surface-hover flex items-center justify-center p-8 md:p-12 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-border-main">
-              <div className="absolute top-8 left-8 z-20 flex flex-col gap-3">
+            {/* Image Section */}
+            <div className="bg-surface-hover/30 flex items-center justify-center p-8 md:p-12 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-border-main/50 group">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--color-accent-light)_0%,_transparent_50%)] opacity-10 group-hover:opacity-20 transition-opacity duration-700 pointer-events-none"></div>
+              
+              <div className="absolute top-4 left-4 z-20 flex flex-col gap-3">
                 <button
                   onClick={() => setShowVideo(true)}
-                  className="w-12 h-12 bg-card-bg rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all text-accent group"
+                  className="w-10 h-10 bg-card-bg/80 backdrop-blur-md border border-border-main rounded-xl flex items-center justify-center shadow-sm hover:bg-accent transition-all duration-300 text-text-primary hover:text-white group/btn"
                 >
-                  <Play className="h-5 w-5 fill-current" />
-                  <span className="absolute left-14 bg-text-primary text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Watch Demo</span>
+                  <Play className="h-4 w-4 fill-current" />
+                  <span className="absolute left-12 bg-card-bg/90 backdrop-blur-md border border-border-main text-text-primary text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap shadow-sm pointer-events-none">Watch Related Video</span>
                 </button>
-                {/* <button 
-                  onClick={() => setShowSim(true)}
-                  className="w-12 h-12 bg-accent rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all text-white group"
-                >
-                  <Activity className="h-5 w-5" />
-                  <span className="absolute left-14 bg-text-primary text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Live Sim</span>
-                </button> */}
               </div>
 
               <motion.img
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
                 src={product.image}
                 alt={product.name}
-                className="w-full max-w-sm h-auto object-contain relative z-10 drop-shadow-2xl"
+                className="w-full max-w-[280px] h-auto object-contain relative z-10 mix-blend-multiply dark:mix-blend-normal transform transition-transform duration-500 group-hover:scale-105"
               />
-
-              {/* Background Glow */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-accent/5 to-transparent"></div>
             </div>
 
             {/* Product Info */}
             <motion.div
-              initial={{ opacity: 0, x: 30 }}
+              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-card-bg relative"
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="p-8 md:p-10 flex flex-col justify-center relative"
             >
-              <div className="flex items-center gap-4 mb-6">
-                <div className="text-[10px] font-black text-accent uppercase tracking-widest px-3 py-1 bg-accent/5 rounded-sm border border-accent/10">{product.category}</div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="text-[9px] font-bold text-accent uppercase tracking-wider px-2 py-0.5 bg-accent/10 rounded-full border border-accent/20">{product.category}</div>
                 {product.inStock && (
-                  <div className="flex items-center gap-1.5 text-status-success text-[10px] font-black uppercase tracking-widest">
+                  <div className="flex items-center gap-1.5 text-status-success text-[9px] font-bold uppercase tracking-wider">
                     <div className="w-1.5 h-1.5 bg-status-success rounded-full animate-pulse" />
-                    Ready to Ship {product.stockQuantity !== undefined ? `(${product.stockQuantity} Available)` : ''}
+                    {product.stockQuantity !== undefined ? `${product.stockQuantity} Units In Stock` : 'In Stock'}
                   </div>
                 )}
               </div>
 
-              <h1 className="text-4xl md:text-5xl font-black text-text-primary mb-6 tracking-tighter uppercase leading-[0.9]">{product.name}</h1>
+              <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-text-primary to-text-secondary mb-5 tracking-tight leading-tight uppercase">{product.name}</h1>
 
-              <div className="flex items-center gap-8 mb-10">
-                <div className="text-5xl font-black text-text-primary tracking-tighter">
+              <div className="flex flex-wrap items-center gap-5 lg:gap-8 mb-6 p-4 bg-surface-hover/40 rounded-xl border border-border-main/50">
+                <div className="text-3xl font-black text-text-primary tracking-tight">
                   {formatPrice(product.price)}
                 </div>
-                <div className="h-10 w-[1px] bg-border-subtle" />
+                <div className="hidden sm:block h-8 w-[1px] bg-border-main" />
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-3 w-3 fill-status-star text-status-star" />)}
+                    {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-3.5 w-3.5 fill-status-warning text-status-warning drop-shadow-[0_0_2px_rgba(217,119,6,0.3)]" />)}
                   </div>
-                  <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">{product.reviews_count} Reviews</span>
+                  <span className="text-[10px] font-bold text-text-muted mt-1">{reviews.length} Reviews</span>
                 </div>
               </div>
 
-              <p className="text-text-secondary text-lg mb-12 leading-relaxed font-medium">
+              <p className="text-text-secondary text-sm mb-8 leading-relaxed max-w-xl">
                 {product.description}
               </p>
 
-              {/* IoT Capabilities */}
-              <div className="grid grid-cols-2 gap-4 mb-10">
-                {[
-                  { icon: Cpu, label: 'Dual Core', val: '240MHz' },
-                  { icon: Zap, label: 'Energy', val: 'Ultra-Low' },
-                  { icon: Wifi, label: 'Network', val: 'Wi-Fi/BT' },
-                  { icon: Shield, label: 'Protocol', val: 'Secure MQTT' },
-                ].map((cap, i) => (
-                  <div key={i} className="flex items-center gap-3 p-4 bg-surface rounded-sm border border-border-subtle">
-                    <div className="w-10 h-10 card rounded-sm flex items-center justify-center text-accent shadow-sm">
-                      <cap.icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-black text-text-muted uppercase tracking-widest">{cap.label}</p>
-                      <p className="text-xs font-bold text-text-primary">{cap.val}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+
 
               {/* Bulk Pricing */}
-              <div className="mb-12 p-6 bg-surface rounded-sm border border-border-main">
-                <div className="flex items-center gap-2 mb-4">
-                  <Package className="h-4 w-4 text-accent" />
-                  <h4 className="text-[10px] font-black text-text-primary uppercase tracking-[0.2em]">Bulk Discount Tiers</h4>
+              <div className="mb-8 p-5 bg-surface-hover/30 rounded-xl border border-border-main/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <Package className="h-3 w-3 text-accent" />
+                  <h4 className="text-[9px] font-bold text-text-primary uppercase tracking-wider">Volume Discount</h4>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <p className="text-[8px] text-text-muted font-bold uppercase mb-1">Standard</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-2 bg-card-bg/50 rounded-lg border border-border-main/30">
+                    <p className="text-[9px] text-text-muted font-bold uppercase mb-1">Standard</p>
                     <p className="text-sm font-black text-text-primary">{formatPrice(product.price)}</p>
                   </div>
-                  <div className="text-center border-x border-border-subtle">
-                    <p className="text-[8px] text-accent font-bold uppercase mb-1">10+ Units</p>
+                  <div className="text-center p-2 bg-accent/5 rounded-lg border border-accent/20">
+                    <p className="text-[9px] text-accent font-bold uppercase mb-1">10+ Units</p>
                     <p className="text-sm font-black text-accent">{formatPrice(product.price * 0.9)}</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-[8px] text-status-success font-bold uppercase mb-1">50+ Units</p>
+                  <div className="text-center p-2 bg-status-success/5 rounded-lg border border-status-success/20">
+                    <p className="text-[9px] text-status-success font-bold uppercase mb-1">50+ Units</p>
                     <p className="text-sm font-black text-status-success">{formatPrice(product.price * 0.8)}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 relative z-10 mt-auto">
                 {(!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity <= 0)) ? (
                   <>
-                    {/* Out of Stock State */}
-                    <div className="flex-grow flex items-center gap-4 px-6 py-5 bg-status-danger-bg border-2 border-status-danger/30 rounded-sm">
+                    <div className="flex-grow flex items-center gap-3 px-4 py-3 bg-status-danger/10 border border-status-danger/30 rounded-xl">
                       <PackageX className="h-5 w-5 text-status-danger flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-black text-status-danger uppercase tracking-widest">Stock Exhausted</p>
-                        <p className="text-[10px] text-text-muted font-bold">This product is currently unavailable</p>
+                        <p className="text-xs font-bold text-status-danger uppercase tracking-wider">Stock Exhausted</p>
                       </div>
                     </div>
                     <button
                       onClick={() => alert("You'll be notified as soon as this product is back in stock!")}
-                      className="px-8 py-5 border-2 border-border-subtle text-text-secondary hover:border-accent hover:text-accent rounded-sm transition-all flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest"
+                      className="px-6 py-3 bg-card-bg/80 border border-border-main hover:border-accent text-text-secondary hover:text-accent rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-xs uppercase shadow-sm"
                     >
                       🔔 Notify Me
                     </button>
                   </>
+                ) : cartItem ? (
+                  <div className="flex-grow flex items-center justify-between bg-card-bg/80 border border-border-main rounded-xl p-2 shadow-inner">
+                    <button 
+                      onClick={() => onUpdateQuantity(cartItem._id, cartItem.quantity - 1)}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-surface hover:bg-surface-hover text-text-primary transition-colors border border-border-main/50"
+                    >
+                      -
+                    </button>
+                    <div className="flex flex-col items-center justify-center">
+                      <span className="text-sm font-black text-text-primary">{cartItem.quantity}</span>
+                      <span className="text-[8px] font-bold text-text-muted uppercase tracking-wider">In Cart</span>
+                    </div>
+                    <button 
+                      onClick={() => onUpdateQuantity(cartItem._id, cartItem.quantity + 1)}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-surface hover:bg-surface-hover text-text-primary transition-colors border border-border-main/50"
+                    >
+                      +
+                    </button>
+                  </div>
                 ) : (
                   <button
-                    className="flex-grow btn-premium py-5 text-sm font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3"
+                    className="flex-grow bg-gradient-to-r from-accent to-secondary hover:from-accent-hover hover:to-secondary text-white py-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_5px_15px_rgba(2,132,199,0.2)] hover:shadow-[0_8px_20px_rgba(2,132,199,0.4)] transition-all hover:-translate-y-0.5"
                     onClick={() => onAddToCart(product)}
                   >
-                    <ShoppingCart className="h-5 w-5" />
-                    Deploy to Cart
+                    <ShoppingCart className="h-4 w-4" />
+                    Add to Cart
                   </button>
                 )}
-                <button
-                  onClick={() => addToCompare(product)}
-                  className={`px-8 py-5 border-2 rounded-sm transition-all flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest ${isInCompare
-                      ? 'border-accent bg-accent text-text-inverse shadow-lg shadow-accent/20'
-                      : 'border-border-subtle text-text-secondary hover:border-accent hover:text-accent'
-                    }`}
-                >
-                  <Scale className="h-5 w-5" />
-                  {isInCompare ? 'Comparing' : 'Compare Specs'}
-                </button>
               </div>
             </motion.div>
 
@@ -359,122 +399,92 @@ const ProductDetail = () => {
           )}
         </AnimatePresence>
 
-        {/* Video Overlay */}
-        <AnimatePresence>
-          {showVideo && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-surface-dark/90 backdrop-blur-xl"
-            >
-              <button onClick={() => setShowVideo(false)} className="absolute top-10 right-10 text-white hover:text-accent transition-all">
-                <X className="h-10 w-10" />
-              </button>
-              <div className="w-full max-w-5xl aspect-video bg-black rounded-sm overflow-hidden shadow-2xl border border-card-bg/10">
-                {/* Simulated Video Placeholder */}
-                <div className="w-full h-full flex flex-col items-center justify-center text-white relative">
-                  <div className="absolute inset-0">
-                    <img src={product.image} className="w-full h-full object-cover opacity-20 blur-2xl" />
-                  </div>
-                  <Play className="h-24 w-24 mb-8 text-accent animate-pulse relative z-10" />
-                  <h2 className="text-3xl font-black uppercase tracking-tighter relative z-10">{product.name} Video Showcase</h2>
-                  <p className="text-white/60 font-bold uppercase tracking-[0.3em] text-xs mt-4 relative z-10">4K Ultra HD Demonstration</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
 
         {/* Specifications & Technical Details */}
-        <div className="mt-32 grid grid-cols-1 lg:grid-cols-2 gap-20">
-          <div>
-            <div className="flex items-center gap-3 mb-8">
-              <Info className="h-6 w-6 text-accent" />
-              <h2 className="text-3xl font-black text-text-primary tracking-tighter uppercase">Technical Specs</h2>
-            </div>
-            <div className="bg-card-bg rounded-sm border border-border-main overflow-hidden shadow-sm">
-              <table className="w-full text-left border-collapse">
-                <tbody>
-                  {product.specs.map((spec, index) => (
-                    <tr key={index} className={index !== product.specs.length - 1 ? "border-b border-border-subtle" : ""}>
-                      <td className="py-5 px-8 text-text-muted text-[10px] font-black uppercase tracking-widest bg-surface-hover w-1/3">Data Point {index + 1}</td>
-                      <td className="py-5 px-8 text-text-primary font-bold text-sm tracking-tight">{spec}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="flex flex-col justify-center space-y-8">
-            <h2 className="text-4xl font-black text-text-primary tracking-tighter uppercase">Engineered for <span className="text-accent">Precision</span></h2>
-            <p className="text-text-secondary text-lg leading-relaxed font-medium">
-              Every {product.name} undergoes a 24-hour stress test before it leaves our warehouse. Our engineers ensure that the I/O pins, ADC converters, and wireless radios are perfectly calibrated.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {[
-                { title: 'Datasheet PDF', sub: 'Technical Documentation', icon: ExternalLink },
-                { title: 'GitHub Repo', sub: 'Driver & Sample Code', icon: ExternalLink },
-              ].map((link, i) => (
-                <div key={i} className="p-6 card rounded-sm hover:border-accent transition-all cursor-pointer group">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-2 bg-surface rounded-sm group-hover:bg-accent group-hover:text-text-inverse transition-all">
-                      <link.icon className="h-5 w-5" />
-                    </div>
-                  </div>
-                  <h4 className="text-sm font-black text-text-primary uppercase tracking-tight">{link.title}</h4>
-                  <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mt-1">{link.sub}</p>
+        <div className="mt-24 bg-card-bg/40 backdrop-blur-md rounded-2xl border border-border-main p-8 md:p-12 relative z-10">
+          <div className="flex flex-col md:flex-row gap-12 lg:gap-24">
+            
+            {/* Left: Specs List */}
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2 bg-accent/10 rounded-lg border border-accent/20 text-accent">
+                  <Info className="h-5 w-5" />
                 </div>
-              ))}
+                <h2 className="text-2xl font-black text-text-primary tracking-tight uppercase">Technical Specs</h2>
+              </div>
+              
+              {product.specs && product.specs.length > 0 ? (
+                <ul className="space-y-4">
+                  {product.specs.map((spec, index) => (
+                    <li key={index} className="flex items-start gap-3 group">
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2 group-hover:scale-150 transition-transform"></div>
+                      <span className="text-text-primary font-medium text-sm leading-relaxed">{spec}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-text-muted text-sm italic">No specifications available for this product.</p>
+              )}
             </div>
+
+            {/* Right: Engineered Info */}
+            <div className="flex-1 flex flex-col justify-center border-t md:border-t-0 md:border-l border-border-main/50 pt-10 md:pt-0 md:pl-12 lg:pl-24">
+              <h2 className="text-2xl font-black text-text-primary tracking-tight uppercase mb-4">Engineered for <span className="text-accent">Precision</span></h2>
+              <p className="text-text-secondary text-sm leading-relaxed max-w-lg mb-6">
+                Every {product.name} undergoes a 24-hour stress test before it leaves our warehouse. Our engineering standard ensures that all electronic components are perfectly calibrated and reliable for your IoT projects.
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 text-status-success text-xs font-bold uppercase tracking-wider bg-status-success/10 px-3 py-1.5 rounded-full border border-status-success/20">
+                   <CheckCircle className="w-4 h-4" /> Quality Assured
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
         {/* Reviews Section */}
-        <div className="mt-40">
-          {/* PREMIUM REVIEWS SECTION */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-16 border-b border-border-main/50 pb-8 relative">
-            <div className="absolute -bottom-[1px] left-0 w-32 h-[2px] bg-gradient-to-r from-accent to-transparent"></div>
+        <div className="mt-24">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 border-b border-border-main/50 pb-6 relative">
+            <div className="absolute -bottom-[1px] left-0 w-24 h-[2px] bg-gradient-to-r from-accent to-transparent"></div>
             <div>
-              <h2 className="text-4xl font-black text-text-primary tracking-tighter">
-                Customer <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-purple-500">Reviews</span>
+              <h2 className="text-2xl font-black text-text-primary uppercase">
+                Customer <span className="text-accent">Reviews</span>
               </h2>
-              <div className="flex items-center gap-4 mt-4">
-                <div className="flex gap-1 bg-surface py-1.5 px-3 rounded-full border border-border-main shadow-sm">
-                  {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-4 w-4 fill-amber-400 text-amber-400" />)}
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex gap-1 bg-surface py-1 px-2 rounded-full border border-border-main">
+                  {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-3 w-3 fill-status-warning text-status-warning" />)}
                 </div>
-                <span className="text-sm font-bold text-text-primary">{product.rating} Average Rating</span>
-                <span className="text-xs font-medium text-text-muted px-2 py-0.5 bg-surface rounded-full">{product.reviews_count} Reviews</span>
+                <span className="text-sm font-bold text-text-primary">{product.rating}</span>
+                <span className="text-[10px] font-bold text-text-muted uppercase px-2 py-0.5 bg-surface rounded-full">{reviews.length} Reviews</span>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-4">
               {reviews.length === 0 ? (
-                <div className="bg-card-bg border border-border-main border-dashed rounded-2xl p-12 flex flex-col items-center justify-center text-center h-full min-h-[300px]">
-                  <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center mb-6">
-                    <Star className="w-10 h-10 text-border-subtle" />
-                  </div>
-                  <h3 className="text-xl font-bold text-text-primary mb-2">No reviews yet</h3>
-                  <p className="text-text-secondary max-w-md mx-auto mb-8">This product doesn't have any reviews yet. Buy this product to be the first one to review it!</p>
+                <div className="bg-card-bg/40 border border-border-main rounded-xl p-10 flex flex-col items-center justify-center text-center h-full min-h-[200px]">
+                  <Star className="w-8 h-8 text-border-subtle mb-4" />
+                  <h3 className="text-lg font-bold text-text-primary mb-1">No reviews yet</h3>
+                  <p className="text-sm text-text-secondary max-w-sm mx-auto">Be the first to review this product!</p>
                 </div>
               ) : (
                 reviews.map((rev, i) => (
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-50px" }}
                     transition={{ delay: i * 0.1 }}
                     key={i}
-                    className="group bg-card-bg border border-border-main/50 hover:border-accent/30 rounded-2xl p-8 shadow-sm hover:shadow-xl hover:shadow-accent/5 transition-all duration-300 relative overflow-hidden"
+                    className="group bg-card-bg/40 backdrop-blur-md border border-border-main/50 rounded-2xl p-6 hover:border-accent/30 transition-all duration-300 relative overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-accent/0 via-accent/[0.02] to-accent/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
 
                     <div className="flex justify-between items-start mb-6 relative z-10">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-purple-500 p-[2px]">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-secondary p-[2px]">
                           <div className="w-full h-full rounded-full bg-card-bg flex items-center justify-center text-text-primary font-bold text-lg">
                             {rev.user.charAt(0)}
                           </div>
@@ -503,7 +513,7 @@ const ProductDetail = () => {
 
                     <div className="flex gap-3 relative z-10">
                       {[1, 2].map(idx => (
-                        <div key={idx} className="w-16 h-16 rounded-xl bg-surface border border-border-main flex items-center justify-center overflow-hidden hover:border-accent cursor-pointer transition-colors">
+                        <div key={idx} className="w-16 h-16 rounded-2xl bg-surface-hover/30 border border-border-main/50 flex items-center justify-center overflow-hidden hover:border-accent hover:bg-surface-hover/60 cursor-pointer transition-colors shadow-inner">
                           <ImageIcon className="h-5 w-5 text-text-muted/40" />
                         </div>
                       ))}
@@ -513,9 +523,11 @@ const ProductDetail = () => {
             </div>
 
             <div className="space-y-6">
-              <div className="bg-gradient-to-b from-surface to-card-bg border border-border-main rounded-2xl p-8 sticky top-32 shadow-sm">
-                <h4 className="text-base font-bold text-text-primary mb-8 tracking-tight flex items-center gap-2">
-                  <Star className="w-5 h-5 text-accent" />
+              <div className="bg-card-bg/40 backdrop-blur-xl border border-border-main rounded-3xl p-8 sticky top-32 shadow-[0_10px_30px_rgba(0,0,0,0.1)]">
+                <h4 className="text-lg font-black text-text-primary mb-8 tracking-tight flex items-center gap-3 uppercase">
+                  <div className="p-2 bg-status-warning/10 text-status-warning rounded-lg border border-status-warning/20">
+                    <Star className="w-5 h-5" />
+                  </div>
                   Rating Breakdown
                 </h4>
 
@@ -548,10 +560,10 @@ const ProductDetail = () => {
                   })}
                 </div>
 
-                <div className="mt-10 p-5 bg-card-bg rounded-xl border border-border-main shadow-sm relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-accent"></div>
-                  <p className="text-xs font-bold text-text-primary mb-1 uppercase tracking-wider">Expert Verdict</p>
-                  <p className="text-sm text-text-secondary leading-relaxed">98% of buyers recommend this product for professional IoT deployments.</p>
+                <div className="mt-10 p-6 bg-surface-hover/30 rounded-2xl border border-border-main shadow-inner relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-accent to-secondary"></div>
+                  <p className="text-[10px] font-black text-text-primary mb-2 uppercase tracking-[0.2em]">Expert Verdict</p>
+                  <p className="text-sm text-text-secondary leading-relaxed font-medium">98% of buyers recommend this product for professional IoT deployments.</p>
                 </div>
               </div>
             </div>
@@ -561,17 +573,17 @@ const ProductDetail = () => {
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
-          <div className="mt-40">
-            <div className="flex justify-between items-end mb-16 border-b border-border-main pb-8">
+          <div className="mt-24">
+            <div className="flex justify-between items-end mb-10 border-b border-border-main pb-4">
               <div>
-                <p className="text-accent text-[10px] font-black uppercase tracking-[0.3em] mb-4">You Might Need</p>
-                <h2 className="text-3xl font-black text-text-primary tracking-tighter uppercase">Compatible <span className="text-accent">Add-ons</span></h2>
+                <p className="text-accent text-[9px] font-bold uppercase tracking-wider mb-2">You Might Need</p>
+                <h2 className="text-2xl font-black text-text-primary uppercase">Compatible <span className="text-accent">Add-ons</span></h2>
               </div>
-              <Link to="/shop" className="text-[10px] font-black text-accent uppercase tracking-widest hover:underline">View All</Link>
+              <Link to="/shop" className="text-[10px] font-bold text-accent uppercase hover:underline">View All</Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedProducts.map(p => (
-                <ProductCard key={p._id} product={p} onAddToCart={onAddToCart} />
+                <ProductCard key={p._id} product={p} />
               ))}
             </div>
           </div>

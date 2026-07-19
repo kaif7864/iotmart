@@ -12,6 +12,164 @@ from api.deps import get_current_active_admin
 router = APIRouter()
 
 from core.redis_cache import get_cache, set_cache, delete_cache
+from services.ai_service import get_ai_chat_response
+import json
+import random
+import re
+from core.database import db
+from pydantic import BaseModel
+
+class AIChatRequest(BaseModel):
+    message: str
+
+@router.post("/ai/chat")
+async def post_ai_chat_products(req: AIChatRequest):
+    prompt = f"""
+    You are a helpful hardware engineering AI assistant for an IoT store.
+    The user wants to build: "{req.message}"
+    
+    First, write a friendly 1-2 sentence response acknowledging their project.
+    Second, provide a list of exactly 4 to 6 generic IoT component names (e.g., 'Arduino', 'Motor', 'Relay', 'Sensor') that are required for this project. Keep the names very concise (1-3 words max) so they can be used as search database keywords.
+    Third, provide a short 1-sentence reason for why each component is needed.
+    
+    Return ONLY a raw JSON object (no markdown).
+    Format:
+    {{
+      "ai_message": "Your friendly response here.",
+      "components": [
+        {{ "keyword": "DC Motor", "reason": "Used to drive the wheels of the robot." }}
+      ]
+    }}
+    """
+    
+    try:
+        reply = await get_ai_chat_response(prompt)
+        
+        # Safely extract JSON block
+        json_match = re.search(r'\{[\s\S]*\}', reply)
+        if json_match:
+            data = json.loads(json_match.group(0))
+        else:
+            data = json.loads(reply)
+            
+        result_products = []
+        components = data.get("components", [])
+        
+        # Search the database for each keyword the AI suggested
+        for comp in components:
+            keyword = comp.get("keyword", "")
+            reason = comp.get("reason", "Highly recommended for your build.")
+            
+            if keyword:
+                # Search by name or category using regex (case-insensitive)
+                # Split keyword into terms to make search more robust (e.g. "DC Motor" -> "Motor")
+                search_term = keyword.split()[-1] if len(keyword.split()) > 1 else keyword
+                
+                cursor = db.products.find({
+                    "$or": [
+                        {"name": {"$regex": search_term, "$options": "i"}},
+                        {"category": {"$regex": search_term, "$options": "i"}},
+                        {"description": {"$regex": search_term, "$options": "i"}}
+                    ]
+                }).limit(1)
+                matched = await cursor.to_list(length=1)
+                
+                if matched:
+                    prod = matched[0]
+                    prod["_id"] = str(prod["_id"])
+                    prod["ai_reason"] = reason
+                    # Avoid duplicates
+                    if prod["_id"] not in [p["_id"] for p in result_products]:
+                        result_products.append(prod)
+                
+        # If DB search didn't yield enough results, pad with random fallback products
+        if len(result_products) < 4:
+            cursor = db.products.aggregate([{"$sample": {"size": 4 - len(result_products)}}])
+            fallback = await cursor.to_list(length=4)
+            for f in fallback:
+                f["_id"] = str(f["_id"])
+                f["ai_reason"] = "A highly versatile component for your build."
+                if f["_id"] not in [p["_id"] for p in result_products]:
+                    result_products.append(f)
+                
+        return {
+            "response": data.get("ai_message", "I have found some excellent components for your project:"),
+            "products": result_products
+        }
+    except Exception as e:
+        print(f"Groq Chat Failed: {e}")
+        error_msg = str(e)
+        raw_reply = reply if 'reply' in locals() else "No reply"
+        
+        # Fallback if completely failed
+        cursor = db.products.aggregate([{"$sample": {"size": 4}}])
+        fallback = await cursor.to_list(length=4)
+        for f in fallback:
+            f["_id"] = str(f["_id"])
+            f["ai_reason"] = "This might be useful for your project."
+        return {
+            "response": f"I've compiled a list of generic recommendations while my brain recalibrates.",
+            "products": fallback
+        }
+
+@router.get("/ai/curated")
+async def get_ai_curated_products():
+    # Cache for 1 hour to prevent hitting Groq limits
+    cache_key = "ai_curated_products"
+    cached = await get_cache(cache_key)
+    if cached:
+        return cached
+
+    # Fetch random 8 products
+    cursor = db.products.aggregate([{"$sample": {"size": 8}}])
+    db_products = await cursor.to_list(length=8)
+    
+    if not db_products:
+        return []
+        
+    product_mapping = {str(p["_id"]): p for p in db_products}
+    product_text = "\n".join([f"- ID: {p['_id']} | Name: {p['name']}" for p in db_products])
+    
+    prompt = f"""
+    You are an advanced AI recommendation engine for an IoT hardware store.
+    Here are some available products:
+    {product_text}
+    
+    Select exactly 4 products that would form an excellent IoT project together.
+    Return ONLY a raw JSON array (no markdown code blocks, just the JSON).
+    Format:
+    [
+      {{"id": "product_id_here", "ai_reason": "A short, exciting 1-sentence reason why AI picked this for the project."}}
+    ]
+    """
+    
+    try:
+        reply = await get_ai_chat_response(prompt)
+        # Strip markdown if groq added it
+        reply = reply.strip().removeprefix("```json").removesuffix("```").strip()
+        selections = json.loads(reply)
+        
+        result = []
+        for s in selections:
+            pid = s.get("id")
+            if pid in product_mapping:
+                prod = product_mapping[pid]
+                prod["_id"] = str(prod["_id"])
+                prod["ai_reason"] = s.get("ai_reason", "AI selected this for your next build.")
+                result.append(prod)
+                
+        if len(result) >= 4:
+            await set_cache(cache_key, result, 3600)
+            return result
+    except Exception as e:
+        print(f"Groq Curated Failed: {e}")
+        
+    # Fallback if AI fails
+    fallback = db_products[:4]
+    for f in fallback:
+        f["_id"] = str(f["_id"])
+        f["ai_reason"] = "Highly recommended for your tech stack."
+    return fallback
 
 @router.get("/")
 async def get_products(page: int = 1, limit: int = 100, search: str = None, category: str = None):
@@ -200,3 +358,31 @@ async def delete_review(id: str, review_index: int, current_user: dict = Depends
         "rating": round(avg_rating, 1)
     })
     return {"message": "Review deleted", "rating": avg_rating}
+
+@router.get("/reviews/all")
+async def get_all_reviews():
+    try:
+        from core.database import db
+        # Aggregate all reviews from all products, unwind them, sort by highest rating and newest, limit to 6
+        pipeline = [
+            {"$unwind": "$reviews"},
+            {"$match": {"reviews.rating": {"$gte": 4}}},
+            {"$sort": {"reviews.date": -1, "reviews.rating": -1}},
+            {"$limit": 6},
+            {"$project": {
+                "_id": 0,
+                "product_id": {"$toString": "$_id"},
+                "product_name": "$name",
+                "name": "$reviews.user_name",
+                "role": {"$cond": [{"$eq": ["$reviews.verified_buyer", True]}, "Verified Buyer", "IoT Enthusiast"]},
+                "text": "$reviews.comment",
+                "rating": "$reviews.rating",
+                "avatar": {"$substr": ["$reviews.user_name", 0, 1]}
+            }}
+        ]
+        cursor = db.products.aggregate(pipeline)
+        reviews = await cursor.to_list(length=6)
+        return reviews
+    except Exception as e:
+        print(f"Failed to fetch global reviews: {e}")
+        return []

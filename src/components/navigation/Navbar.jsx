@@ -87,14 +87,14 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="fixed top-0 w-full z-[100] bg-card-bg/80 backdrop-blur-xl border-b border-border-main shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
+    <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-[100] bg-card-bg/75 backdrop-blur-2xl border border-border-main/50 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300">
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16 sm:h-20">
           
           {/* Logo */}
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-11 h-11 bg-accent rounded-sm flex items-center justify-center shadow-lg shadow-accent/20 group-hover:rotate-12 transition-transform duration-500">
+              <div className="w-11 h-11 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 group-hover:rotate-12 transition-transform duration-500">
                 <CircuitBoard className="h-6 w-6 text-white" />
               </div>
               <span className="font-black text-2xl tracking-tighter text-text-primary uppercase hidden sm:block">
@@ -110,7 +110,7 @@ const Navbar = () => {
               <input 
                 type="text" 
                 placeholder="Search high-performance components..." 
-                className="w-full pl-14 pr-24 py-3.5 bg-app-bg border border-border-main rounded-sm text-sm font-bold text-text-primary focus:outline-none focus:border-accent focus:bg-card-bg focus:ring-4 focus:ring-accent/5 transition-all shadow-inner"
+                className="w-full pl-14 pr-24 py-3.5 bg-app-bg border border-border-main rounded-full text-sm font-bold text-text-primary focus:outline-none focus:border-accent focus:bg-card-bg focus:ring-4 focus:ring-accent/5 transition-all shadow-inner"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
@@ -118,7 +118,7 @@ const Navbar = () => {
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <button 
                   onClick={startVoiceSearch}
-                  className={`p-2 rounded-sm transition-all ${isListening ? 'bg-status-danger text-white animate-pulse' : 'bg-card-bg text-text-muted hover:text-accent border border-border-subtle shadow-sm'}`}
+                  className={`p-2 rounded-full transition-all ${isListening ? 'bg-status-danger text-white animate-pulse' : 'bg-card-bg text-text-muted hover:text-accent border border-border-subtle shadow-sm'}`}
                 >
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </button>
@@ -142,7 +142,7 @@ const Navbar = () => {
                       <button 
                         key={p._id}
                         onClick={() => {
-                          navigate(`/product/${p._id}`);
+                          navigate(`/product/${p.slug || p._id}`);
                           setSearchQuery('');
                           setSuggestions([]);
                         }}
@@ -186,7 +186,7 @@ const Navbar = () => {
             {isInstallable && (
               <button 
                 onClick={triggerInstall}
-                className="hidden md:flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-light text-white rounded-sm font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-accent/20"
+                className="hidden md:flex items-center gap-2 px-5 py-2 bg-accent hover:bg-accent-light text-white rounded-full font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-accent/20"
               >
                 <Download className="h-4 w-4" /> Install App
               </button>
@@ -196,7 +196,7 @@ const Navbar = () => {
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => { setIsNotifOpen(!isNotifOpen); markAllRead(); }}
-                className="p-3 bg-app-bg rounded-full border border-border-main hover:bg-card-bg hover:border-accent transition-all shadow-sm relative group"
+                className="p-3 bg-app-bg rounded-xl border border-border-main hover:bg-card-bg hover:border-accent transition-all shadow-sm relative group"
               >
                 <Bell className={`h-5 w-5 ${notifications.some(n => !n.read) ? 'text-accent' : 'text-text-secondary'} group-hover:text-accent transition-colors`} />
                 {notifications.some(n => !n.read) && (
@@ -238,7 +238,7 @@ const Navbar = () => {
             </div>
 
             {/* Cart Icon */}
-            <Link to="/cart" className="relative group p-3 bg-app-bg rounded-full border border-border-main hover:bg-card-bg hover:border-accent transition-all shadow-sm">
+            <Link to="/cart" className="relative group p-3 bg-app-bg rounded-xl border border-border-main hover:bg-card-bg hover:border-accent transition-all shadow-sm">
               <ShoppingCart className="h-5 w-5 text-text-secondary group-hover:text-accent transition-colors" />
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-[10px] font-black text-white bg-accent rounded-full border-2 border-card-bg shadow-lg">

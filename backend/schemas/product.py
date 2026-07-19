@@ -20,6 +20,8 @@ class ProductBase(BaseModel):
     specs: List[str]
     inStock: bool = True
     stockQuantity: int = 10
+    slug: Optional[str] = None
+    video_id: Optional[str] = None
 
 class ProductCreate(ProductBase):
     pass

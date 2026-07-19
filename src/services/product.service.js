@@ -6,6 +6,21 @@ const apiCache = {
 };
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+export const getAiCuratedProducts = async () => {
+  const response = await apiClient.get('/products/ai/curated');
+  return response.data;
+};
+
+export const postAiChatProducts = async (message) => {
+  const response = await apiClient.post('/products/ai/chat', { message });
+  return response.data;
+};
+
+export const getGlobalReviews = async () => {
+  const response = await apiClient.get('/products/reviews/all');
+  return response.data;
+};
+
 export const getProducts = async (page = 1, limit = 100, search = '', category = '') => {
   const now = Date.now();
   const cacheKey = `${page}-${limit}-${search}-${category}`;

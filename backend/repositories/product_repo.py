@@ -16,7 +16,10 @@ class ProductRepository:
         return await self.collection.count_documents(query)
 
     async def get_product_by_id(self, product_id: str):
-        return await self.collection.find_one({"_id": ObjectId(product_id)})
+        try:
+            return await self.collection.find_one({"_id": ObjectId(product_id)})
+        except:
+            return await self.collection.find_one({"slug": product_id})
 
     async def insert_product(self, product_data: dict):
         return await self.collection.insert_one(product_data)

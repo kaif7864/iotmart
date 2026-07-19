@@ -569,7 +569,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                               <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 card rounded-2xl hover:border-accent/30 transition-all gap-4">
                                 <div className="flex items-center gap-4">
                                   <div className="w-2 h-2 rounded-full bg-accent shrink-0" />
-                                  <Link to={`/product/${item.product_id}`} className="text-sm font-bold text-text-primary uppercase tracking-tight hover:text-accent transition-colors">
+                                  <Link to={`/product/${item.slug || item.product_id}`} className="text-sm font-bold text-text-primary uppercase tracking-tight hover:text-accent transition-colors">
                                     {item.name}
                                   </Link>
                                 </div>
@@ -796,7 +796,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                           <h4 className="font-black text-text-primary text-sm uppercase tracking-tight line-clamp-1">{product.name}</h4>
                           <p className="text-lg font-black text-accent mt-1">{formatPrice(product.price || 0)}</p>
                           <div className="flex gap-2 mt-4">
-                            <Link to={`/product/${product._id}`} className="px-4 py-2 bg-app-bg text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-surface-hover transition-all border border-border-main">View</Link>
+                            <Link to={`/product/${product.slug || product._id}`} className="px-4 py-2 bg-app-bg text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-surface-hover transition-all border border-border-main">View</Link>
                             {(() => {
                               const cartItem = cartItems.find(item => item._id === product._id);
                               const quantityInCart = cartItem ? cartItem.quantity : 0;
@@ -888,7 +888,7 @@ ${newAddr.landmark ? `Landmark: ${newAddr.landmark}\n` : ''}Phone: ${newAddr.pho
                         <div className="flex-grow">
                           <h4 className="font-black text-text-primary text-sm uppercase tracking-tight line-clamp-1">{product.name}</h4>
                           <p className="text-lg font-black text-accent mt-1">{formatPrice(product.price || 0)}</p>
-                          <Link to={`/product/${product._id}`} className="inline-block mt-4 text-[10px] font-black uppercase tracking-widest text-accent hover:underline">View Product</Link>
+                          <Link to={`/product/${product.slug || product._id}`} className="inline-block mt-4 text-[10px] font-black uppercase tracking-widest text-accent hover:underline">View Product</Link>
                         </div>
                       </div>
                     )) : (

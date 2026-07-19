@@ -1,6 +1,6 @@
 import apiClient from './api.client';
 import { loginUser, signupUser, sendVerification, verifyMobile, verifyEmailOtp, updateIdentity, forgotPassword } from './auth.service';
-import { getProducts, getProductsPaginated, addProductReview, getProductById, createProduct, updateProduct, deleteProduct } from './product.service';
+import { getProducts, getProductsPaginated, addProductReview, getProductById, createProduct, updateProduct, deleteProduct, getAiCuratedProducts, postAiChatProducts, getGlobalReviews } from './product.service';
 import { placeOrder, getOrdersByUser, getUserOrders, getAllOrders, updateOrderStatus, updateOrderTracking, getLiveTracking, refundOrder } from './order.service';
 import { getUsers, updateUserRole, updateUserStatus, deleteUser, toggleWishlist, addAddress, removeAddress, updateUserProfile, changeUserPassword, deactivateAccount, addRecentlyViewed } from './user.service';
 import { getDashboardStats } from './analytics.service';
@@ -46,6 +46,9 @@ export {
   loginUser,
   signupUser,
   getProducts,
+  getAiCuratedProducts,
+  postAiChatProducts,
+  getGlobalReviews,
   getProductsPaginated,
   addProductReview,
   getProductById,

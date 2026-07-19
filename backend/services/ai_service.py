@@ -14,7 +14,7 @@ async def get_ai_chat_response(message: str) -> str:
     }
 
     payload = {
-        "model": "llama3-70b-8192",
+        "model": "llama3-8b-8192",
         "messages": [
             {
                 "role": "system",
@@ -41,7 +41,7 @@ async def get_ai_chat_response(message: str) -> str:
 
             if response.status_code != 200:
                 print(f"Groq API Error: {response.status_code} - {response.text}")
-                return "The AI core is recalibrating. This usually happens during heavy load. Please try your query again in a moment."
+                return f"Groq API Error {response.status_code}: {response.text}"
             
             data = response.json()
             return data["choices"][0]["message"]["content"]
