@@ -88,15 +88,14 @@ async def seed():
     print("Seeding products...")
     await db.products.insert_many(initial_products)
     
-    # pyrefly: ignore [missing-import]
-    from routes_auth import pwd_context
+    from core.security import get_password_hash
     
     print("Seeding users...")
     initial_users = [
         {
             "name": "Admin User",
             "email": "admin@iotmart.com",
-            "password": pwd_context.hash("admin123"),
+            "password": get_password_hash("admin123"),
             "role": "admin",
             "status": "active",
             "wishlist": [],
@@ -107,7 +106,7 @@ async def seed():
         {
             "name": "Kaif Ansari",
             "email": "kaif@example.com",
-            "password": pwd_context.hash("user123"),
+            "password": get_password_hash("user123"),
             "role": "user",
             "status": "active",
             "wishlist": [],
