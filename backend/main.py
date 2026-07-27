@@ -24,6 +24,23 @@ from core.database import db
 from core.redis_cache import init_redis, close_redis
 import pymongo
 
+import asyncio
+import httpx
+from core.logger import logger
+
+async def keep_alive_task():
+    """Background task to ping backend /api/health every 4 minutes to prevent server sleep."""
+    await asyncio.sleep(10)
+    while True:
+        try:
+            url = f"{settings.BACKEND_URL.rstrip('/')}/api/health"
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url)
+                logger.info(f"Keep-alive ping status: {resp.status_code}")
+        except Exception as e:
+            logger.warning(f"Keep-alive ping failed: {e}")
+        await asyncio.sleep(240)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -32,8 +49,13 @@ async def lifespan(app: FastAPI):
     await db.products.create_index([("category", pymongo.ASCENDING)])
     await db.products.create_index([("name", pymongo.TEXT)])
     await db.orders.create_index([("user_id", pymongo.ASCENDING)])
+    
+    # Start Keep-Alive Cron Background Task (Pings every 4 mins)
+    ping_task = asyncio.create_task(keep_alive_task())
+    
     yield
     # Shutdown
+    ping_task.cancel()
     await close_redis()
 
 app = FastAPI(title="IoTMart API", version="1.0.0", lifespan=lifespan)

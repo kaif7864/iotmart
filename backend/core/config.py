@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     SHIPROCKET_EMAIL: str = ""
     SHIPROCKET_PASSWORD: str = ""
     FRONTEND_URL: str = "http://localhost:5173"
+    BACKEND_URL: str = "http://localhost:8000"
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000,https://iotmart.vercel.app"
     BREVO_API_KEY: str = ""
     CLOUDINARY_URL: str = ""
