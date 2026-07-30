@@ -19,9 +19,12 @@ async def get_dashboard_stats(range: str = "7D"):
     else:
         threshold = datetime.min
         
-    orders_raw = await db.orders.find().to_list(10000)
-    users = await db.users.find().to_list(10000)
-    products = await db.products.find().to_list(10000)
+    # Count total users efficiently without pulling user documents into RAM
+    total_users_count = await db.users.count_documents({})
+    
+    # Fetch lightweight projections of orders and products
+    orders_raw = await db.orders.find({}, projection={"_id": 1, "total": 1, "status": 1, "created_at": 1, "items": 1}).to_list(5000)
+    products = await db.products.find({}, projection={"_id": 1, "name": 1, "stockQuantity": 1, "reviews": 1}).to_list(2000)
     
     # Filter in memory to handle both string and datetime types gracefully
     orders = []
@@ -54,8 +57,7 @@ async def get_dashboard_stats(range: str = "7D"):
         else:
             if range == "ALL":
                 orders.append(order)
-    users = await db.users.find().to_list(10000)
-    products = await db.products.find().to_list(10000)
+
     
     # Valid statuses for revenue calculation
     valid_revenue_statuses = ["Processing", "Confirmed", "Paid", "Shipped", "Delivered"]
@@ -129,7 +131,7 @@ async def get_dashboard_stats(range: str = "7D"):
     return {
         "total_revenue": total_revenue,
         "total_orders": len(orders),
-        "total_users": len(users),
+        "total_users": total_users_count,
         "liveTraffic": 42, # Simulated
         "low_stock": [{"name": p.get("name"), "stockQuantity": p.get("stockQuantity"), "_id": str(p["_id"])} for p in low_stock],
         "lowStockCount": len(low_stock),

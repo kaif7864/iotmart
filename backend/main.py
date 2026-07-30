@@ -31,15 +31,22 @@ from core.logger import logger
 async def keep_alive_task():
     """Background task to ping backend /api/health every 4 minutes to prevent server sleep."""
     await asyncio.sleep(10)
-    while True:
-        try:
-            url = f"{settings.BACKEND_URL.rstrip('/')}/api/health"
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(url)
-                logger.info(f"Keep-alive ping status: {resp.status_code}")
-        except Exception as e:
-            logger.warning(f"Keep-alive ping failed: {e}")
-        await asyncio.sleep(240)
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            while True:
+                if settings.BACKEND_URL:
+                    try:
+                        url = f"{settings.BACKEND_URL.rstrip('/')}/api/health"
+                        resp = await client.get(url)
+                        logger.info(f"Keep-alive ping status: {resp.status_code}")
+                    except Exception as e:
+                        logger.warning(f"Keep-alive ping failed: {e}")
+                await asyncio.sleep(240)
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        logger.warning(f"Keep-alive task encountered unexpected error: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     CASHFREE_API_URL: str = "https://sandbox.cashfree.com/pg/orders"
     SHIPROCKET_EMAIL: str = ""
     SHIPROCKET_PASSWORD: str = ""
+    SHIPROCKET_PICKUP_LOCATION: str = "Home"
+
     FRONTEND_URL: str = "http://localhost:5173"
     BACKEND_URL: str = "http://localhost:8000"
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000,https://iotmart.vercel.app"

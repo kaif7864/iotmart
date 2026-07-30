@@ -20,15 +20,19 @@ class ConnectionManager:
 
     def disconnect(self, websocket: WebSocket, device_id: str):
         if device_id in self.active_connections:
-            self.active_connections[device_id].remove(websocket)
+            if websocket in self.active_connections[device_id]:
+                self.active_connections[device_id].remove(websocket)
             if not self.active_connections[device_id]:
                 del self.active_connections[device_id]
         print(f"Device {device_id} disconnected")
 
+    def is_connected(self, websocket: WebSocket, device_id: str) -> bool:
+        return device_id in self.active_connections and websocket in self.active_connections[device_id]
+
     async def broadcast(self, device_id: str, message: dict):
         if device_id in self.active_connections:
             dead_connections = []
-            for connection in self.active_connections[device_id]:
+            for connection in list(self.active_connections[device_id]):
                 try:
                     await connection.send_text(json.dumps(message))
                 except Exception:
@@ -44,11 +48,13 @@ async def websocket_endpoint(websocket: WebSocket, device_id: str):
     await manager.connect(websocket, device_id)
     try:
         # Simulate IoT Hardware streaming data every 2 seconds
-        # In a real app, this data would come from MQTT or Redis Pub/Sub
         temp = 24.5
         humid = 45.0
-        while True:
+        while manager.is_connected(websocket, device_id):
             await asyncio.sleep(2)
+            
+            if not manager.is_connected(websocket, device_id):
+                break
             
             # Simulate slight environmental changes
             temp += random.uniform(-0.5, 0.5)
@@ -64,7 +70,16 @@ async def websocket_endpoint(websocket: WebSocket, device_id: str):
                 "cpuUsage": random.randint(10, 80)
             }
             
-            await manager.broadcast(device_id, payload)
+            try:
+                await websocket.send_text(json.dumps(payload))
+            except Exception:
+                # Client disconnected or socket closed; break loop to terminate task
+                break
             
     except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"WebSocket error for {device_id}: {e}")
+    finally:
         manager.disconnect(websocket, device_id)
+

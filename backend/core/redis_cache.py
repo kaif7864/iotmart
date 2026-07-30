@@ -61,8 +61,11 @@ async def delete_cache(pattern: str):
     if not redis_client:
         return
     try:
-        keys = await asyncio.wait_for(redis_client.keys(pattern), timeout=2.0)
+        keys = []
+        async for key in redis_client.scan_iter(match=pattern, count=100):
+            keys.append(key)
         if keys:
             await asyncio.wait_for(redis_client.delete(*keys), timeout=2.0)
     except Exception as e:
         print(f"Redis delete error: {e}")
+

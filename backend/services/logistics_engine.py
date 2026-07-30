@@ -6,12 +6,20 @@ from datetime import datetime
 class ShiprocketLogistics:
     def __init__(self):
         self.base_url = "https://apiv2.shiprocket.in/v1/external"
-        self.email = settings.SHIPROCKET_EMAIL or "mock_email@iotmart.com"
-        self.password = settings.SHIPROCKET_PASSWORD or "mock_pass"
         self.token = None
-        
-        # If no real keys are provided, we run in MOCK mode to prevent crashes
-        self.mock_mode = self.email == "mock_email@iotmart.com"
+
+    @property
+    def email(self):
+        return settings.SHIPROCKET_EMAIL or ""
+
+    @property
+    def password(self):
+        return settings.SHIPROCKET_PASSWORD or ""
+
+    @property
+    def mock_mode(self):
+        return not bool(self.email and self.password and self.email != "mock_email@iotmart.com")
+
 
     async def authenticate(self):
         if self.mock_mode:
@@ -40,7 +48,8 @@ class ShiprocketLogistics:
         if self.mock_mode:
             # Generate a realistic looking Mock AWB
             mock_awb = f"AWB{str(int(datetime.now().timestamp()))[-8:]}IN"
-            print(f"📦 [MOCK SHIPROCKET] Order pushed to logistics system. Generated AWB: {mock_awb}")
+            print(f"[MOCK SHIPROCKET] Order pushed to logistics system. Generated AWB: {mock_awb}")
+
             return {"success": True, "tracking_id": mock_awb, "shiprocket_order_id": "SR123456"}
 
         if not self.token:
@@ -52,7 +61,8 @@ class ShiprocketLogistics:
         payload = {
             "order_id": str(order_data.get("_id", "UNKNOWN")),
             "order_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "pickup_location": "Primary_Warehouse",
+            "pickup_location": settings.SHIPROCKET_PICKUP_LOCATION or "Home",
+
             "billing_customer_name": user_data.get("name", "Guest"),
             "billing_last_name": "",
             "billing_address": order_data.get("shippingAddress", "Digital Delivery"),
@@ -88,7 +98,8 @@ class ShiprocketLogistics:
                     return {
                         "success": True, 
                         "shiprocket_order_id": data.get("order_id"), 
-                        "tracking_id": data.get("awb_code", f"AWB-PENDING-{data.get('order_id')}")
+                        "tracking_id": data.get("awb_code") or str(data.get("shipment_id")) or f"SR-{data.get('order_id')}"
+
                     }
                 return {"success": False, "error": res.text}
             except Exception as e:
