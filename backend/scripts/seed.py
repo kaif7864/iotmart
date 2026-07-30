@@ -104,8 +104,8 @@ async def seed():
             ]
         },
         {
-            "name": "Kaif Ansari",
-            "email": "kaif@example.com",
+            "name": "Mohd Kaif",
+            "email": "mohdkaif@example.com",
             "password": get_password_hash("user123"),
             "role": "user",
             "status": "active",

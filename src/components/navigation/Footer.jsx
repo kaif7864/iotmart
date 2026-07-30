@@ -123,8 +123,8 @@ const Footer = () => {
             <span className="font-black text-xl text-white tracking-tighter">IoT<span className="text-accent">Mart</span></span>
           </div>
 
-          <p className="text-text-muted text-[10px] font-black uppercase tracking-widest">
-            &copy; {new Date().getFullYear()} IoTMart Inc. All systems operational.
+          <p className="text-text-muted text-[10px] font-black uppercase tracking-widest text-center">
+            &copy; {new Date().getFullYear()} IoTMart • Founded & Owned by <span className="text-white">Mohd Kaif</span>. All rights reserved.
           </p>
 
           <div className="flex items-center gap-6">

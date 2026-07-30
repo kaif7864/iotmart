@@ -11,10 +11,14 @@ const SEO = ({ title, description, keywords, image }) => {
     <Helmet>
       <title>{fullTitle}</title>
       <meta name="description" content={metaDescription} />
+      <meta name="author" content="Mohd Kaif" />
+      <meta name="owner" content="Mohd Kaif" />
+      <meta name="publisher" content="Mohd Kaif - IoTMart" />
       {keywords && <meta name="keywords" content={keywords} />}
       
       {/* Open Graph / Facebook */}
       <meta property="og:type" content="website" />
+      <meta property="og:site_name" content="IoTMart" />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={metaDescription} />
       <meta property="og:image" content={image || defaultImage} />

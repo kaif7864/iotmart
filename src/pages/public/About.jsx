@@ -1,5 +1,6 @@
 import React from 'react';
-import { Shield, Zap, Globe, Users, Target } from 'lucide-react';
+import { Shield, Zap, Globe, Users, Target, UserCheck } from 'lucide-react';
+import SEO from '../../components/SEO';
 
 const About = () => {
   const features = [
@@ -10,14 +11,20 @@ const About = () => {
 
   return (
     <div className="pt-32 pb-32">
+      <SEO 
+        title="About Us - Founded by Mohd Kaif | IoTMart"
+        description="Learn about IoTMart, the premier hardware marketplace founded and owned by Mohd Kaif for engineers, hobbyists, and IoT innovators."
+        keywords="IoTMart About, Mohd Kaif, Founder IoTMart, Hardware Marketplace, IoT Components"
+      />
+
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-32">
         <div className="text-center">
-          <p className="text-xs font-black text-accent uppercase tracking-[0.3em] mb-4">Future of Hardware</p>
+          <p className="text-xs font-black text-accent uppercase tracking-[0.3em] mb-4">Founded & Owned by Mohd Kaif</p>
           <h1 className="text-5xl md:text-7xl font-black text-text-primary tracking-tighter mb-8 uppercase">
             Empowering the <br /> <span className="text-accent">IoT Revolution</span>
           </h1>
           <p className="max-w-2xl mx-auto text-text-secondary text-lg font-medium leading-relaxed">
-            IoTMart is the backbone for engineers, hobbyists, and innovators building the connected world of tomorrow.
+            IoTMart was created by Mohd Kaif to serve as the ultimate backbone for engineers, hobbyists, and industrial innovators building the connected world of tomorrow.
           </p>
         </div>
       </section>
@@ -26,9 +33,12 @@ const About = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             <div className="space-y-8">
-              <h2 className="text-4xl font-black text-text-primary tracking-tight uppercase">High-Quality Components</h2>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent/10 text-accent rounded-full text-xs font-black uppercase tracking-widest border border-accent/20">
+                <UserCheck className="w-4 h-4" /> Founder & Owner: Mohd Kaif
+              </div>
+              <h2 className="text-4xl font-black text-text-primary tracking-tight uppercase">High-Quality Components & Engineering Excellence</h2>
               <p className="text-text-secondary leading-relaxed font-medium">
-                We provide genuine, tested, and reliable IoT components at competitive prices.
+                Under the leadership of Mohd Kaif, IoTMart provides genuine, rigorously tested, and high-performance IoT hardware at competitive pricing with seamless global logistics.
               </p>
             </div>
             <div className="relative aspect-square rounded-sm overflow-hidden shadow-2xl border-8 border-card-bg">
